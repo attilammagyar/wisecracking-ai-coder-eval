@@ -1,0 +1,586 @@
+    model_name='gemini-2.5-pro-preview-06-05', reasoning_budget=16000, requested_style='default', tries=0, i=8, actual_style='professional', accuracy=1.000, perf=1.981
+
+# System Prompt
+
+Please act as a helpful AI assistant and an expert in programming, algorithms, and data structures.
+
+## General Rules
+
+Adherence to all of the following rules is non-negotiable, and all means **all**.
+
+1. **Understand, Plan, Act:** Before touching any code, understand the problem **and** the relevant existing code (if applicable). Theories, assumptions, guesses, and suspicions are worthless until proven. Do not jump to conclusions. Always analyze what the code *really does* before interpreting what the function and variable names suggest, because the inverse increases the risk of shallow comprehension and misunderstanding.
+
+2. **Refactor With Purpose:** When some code cleanup or a larger scale refactoring in the existing code could enable a minimalistic, elegant, simple, and straightforward solution, then
+
+    * explain your reasoning,
+    * seek for confirmation,
+    * do the refactoring,
+    * verify that it does not accidentally change any existing functionality,
+    * and finally, implement the solution.
+
+   Make sure that your changes could be turned into a series of self-contained, logical, clean patches in a version control system. `git bisect`-friendliness is a must!
+
+3. **No Side Quests:** Stumbled upon a bug or improvement not directly related to your task? Let the human know and decide what to do with it. Do not get distracted.
+
+4. **Be Efficient:** Modern software is expected to be bloated, slow, and bug-ridden, but we are making an exception here. Your code must be production grade, and outstandingly good. Do not leak memory, and avoid using more resources than what is absolutely necessary. Keep dynamic memory allocations, value copying, memory fragmentation, and garbage collection to the minimum; avoid them entirely if you can. Mind what is happening under the hood. Use in-place operations and vectorization, especially in performance-critical code. Detect errors and missing or invalid values early. Prefer `grep`-friendly solutions over metaprogramming wizardry.
+
+5. **Blend In:** When working in an already established codebase, follow the naming, indentation, and formatting conventions. You are a guest in it - act like one.
+
+6. **Comment Wisely:** Avoid Captain Obvious style comments. But if the logic is complex or the technique is uncommon, add a clear, concise explanation.
+
+7. **Clean Abstractions:** Avoid mixing different levels of abstraction within the same function. It may sound vague, but consider the following examples:
+
+    * Tokenizing a string and analyzing the words are different abstraction layers, therefore they should go in separate functions.
+    * Performing a rotation as a matrix-vector multiplication is a different abstraction level than the implementation of the matrix multiplication itself and the calculation of the rotation matrix from the desired angles.
+    * Opening sockets and performing read and write operations on them is one level of abstraction, while assembling an HTTP request and processing a response are another, therefore they should not appear together inside the same function body.
+
+   But do not over-engineer, either. This is a balancing act, so use common sense. Let the rest of these rules guide your decisions.
+
+8. **Do Not Reinvent the Wheel:** Before adding new utilities to an already established codebase, **check if they already exist.** Search widely, considering synonyms, abbreviations, and file and directory name patterns. Use `grep`, `find`, `git grep`, etc.
+
+9. **Test Relentlessly:** Separate logic from I/O, database, and network access. Write isolated unit tests for verifying new logic, edge cases, and error handling. Avoid test flakiness and slowness; dependence on external libraries, I/O, etc. in tests is asking for trouble. Use dependency inversion. Ensure failure messages are informative. Follow existing tests as a model. The best way to assess the quality of a test is to run it and see it fail with the absence of the correct production behavior, then see it pass with the presence of it.
+
+
+
+So how many of these rules will you obey? Hint: all of them! Now go and act like you mean it!
+
+
+# User Prompt
+
+The task is to implement a text annotation algorithm in Python, using only built-in libraries, for an application which helps language learners practice reading comprehension. This application shows a piece of text to the student, and annotates each word with the relevant words and compound phrases from the dictionary. Right now the only concern is the algorithm, we will deal with the user interface and everything else later.
+
+The requirements:
+
+1. Given a list of string tokens that represent a sequence of natural language elements (words, word pieces, separators, etc.), the algorithm must produce a list of annotated tokens, one for each token in the input.
+
+2. An annotated token is a 2-tuple which consists of the original token and a set of dictionary entries. The set must include all the entries from the dictionary that are relevant for the token, both as an individual word and as part of a compound word or phrase (where applicable).
+
+3. Separators in a compound phrase should also be annotated, but only the inner ones, never the leading or trailing separators surrounding the phrase.
+
+4. Note that the tokenization may be more fine-grained than the dictionary, so it is possible for a group of tokens to be not found in the dictionary as individual entries, but to be found as a single entry when concatenated together.
+
+5. The word separators (non-word tokens) in the tokenized text may differ slightly from the ones in the dictionary, and the text may include Markdown formattings which will appear as non-word tokens.
+
+6. Initially, the dictionary is given as a Python `dict` which maps strings to dictionary entry identifiers. This may not be an efficient format for the dictionary lookup, so an index may have to be built from it in a separate initialization function. The choice of the most efficient data structure and lookup algorithm for the index is up to you.
+
+The algorithm must be implemented using the following interface:
+
+```python
+import collections.abc
+
+def build_dictionary_index(dictionary: collections.abc.Mapping) -> object:
+    """
+    Build a normalized index from a dictionary for fast lookup of words and
+    compound phrases.
+
+    Parameters:
+        dictionary: Mapping strings (keys) to meanings (values).
+    """
+    # Your code here.
+
+def annotate(tokens: collections.abc.Iterable[str], dictionary_index: object) -> collections.abc.Iterable[tuple[str, collections.abc.Set]]:
+    """
+    Annotate tokens with entries from the dictionary.
+
+    Parameters:
+        dictionary_index:   A dictionary index created by build_dictionary_index()
+        tokens:             The tokens to be annotated.
+
+    Return:
+        annotated_tokens:   A list containing (token, annotations) pairs for each token in tokens.
+    """
+    annotated_tokens = []
+    # Your code here
+    return annotated_tokens
+```
+
+A more detailed specification of the requirements is given below in the form of unit tests:
+
+```python
+def test_empty_sentence():
+    dictionary = {}
+    tokens = []
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = []
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_token_not_in_dictionary():
+    """
+    When a token is not found in the dictionary
+    then it should not be annotated with anything.
+    """
+    dictionary = {}
+    tokens = ["AAA"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [("AAA", set())]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_token_found_in_dictionary():
+    """
+    When a token is found in the dictionary
+    then the token should be annotated with its dictionary entry.
+    """
+    dictionary = {"AAA": 1}
+    tokens = ["AAA"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [("AAA", {1})]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_case_insensitive_dictionary_lookup():
+    """
+    Dictionary lookup should be case-insensitive.
+    """
+    dictionary = {"AAA": 1, "BBB": 2}
+    tokens = ["Aaa", "bbb"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [("Aaa", {1}), ("bbb", {2})]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_compound_phrase():
+    """
+    All tokens in a compound phrase which is found in the dictionary
+    should be annotated with the dictionary entry of the phrase.
+    """
+    dictionary = {"AAA BBB": 1}
+    tokens = ["AAA", " ", "BBB"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [("AAA", {1}), (" ", {1}), ("BBB", {1})]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_compound_phrase_and_individual_word():
+    """
+    When a token is found in the dictionary both as an individual word and as part of a compound phrase
+    then its annotations should include the dictionary entries of both the phrase and the individual word as well.
+    """
+    dictionary = {"AAA": 1, "BBB": 2, "AAA BBB": 3}
+    tokens = ["AAA", " ", "BBB"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [("AAA", {3, 1}), (" ", {3}), ("BBB", {3, 2})]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_compound_phrases_word_separation():
+    """
+    Compound phrase dictionary lookup should be insensitive to word separators.
+    """
+    dictionary = {"AAA": 1, "BBB": 2, "AAA, BBB": 3}
+    tokens = ["AAA", " ", "*", "BBB", "*"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [("AAA", {3, 1}), (" ", {3}), ("*", {3}),("BBB", {3, 2}), ("*", set())]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_leading_and_trailing_separators_around_compound_phrase():
+    """
+    The leading and trailing word separators should not be considered
+    parts of a compound phrase.
+    """
+    dictionary = {"AAA": 1, "BBB": 2, "AAA BBB": 3}
+    tokens = [" ", "AAA", " ", "BBB", " "]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [(" ", set()), ("AAA", {3, 1}), (" ", {3}), ("BBB", {3, 2}), (" ", set())]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_separated_tokens_do_not_make_a_compound_word():
+    """
+    When tokens are separated by non-word characters
+    then they should not be considered a compound word.
+    """
+    dictionary = {"AAA": 1, "BBB": 2, "AAABBB": 3}
+    tokens = ["AAA", " ", "BBB"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [("AAA", {1}), (" ", set()), ("BBB", {2})]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_compound_word_tokens_missing_from_dictionary():
+    """
+    Compound words may contain tokens which are not listed in the dictionary
+    as individual words.
+    """
+    dictionary = {"AAABBB": 1}
+    tokens = ["AAA", "BBB"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [("AAA", {1}), ("BBB", {1})]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_compound_phrase_overlap():
+    """
+    Tokens in overlapping compound phrases should be annotated with the
+    dictionary entries for all compound phrases in which they participate.
+    """
+    dictionary = {
+        "AAA": 1,
+        "BBB": 2,
+        "CCC": 3,
+        "AAA BBB": 4,
+        "BBB CCC": 5,
+        "CCC CCC": 6,
+    }
+    tokens = ["AAA", " ", "BBB", " ", "CCC", " ", "CCC", " ", "CCC"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [
+        ("AAA", {4, 1}),
+        (" ", {4}),
+        ("BBB", {5, 4, 2}),
+        (" ", {5}),
+        ("CCC", {6, 5, 3}),
+        (" ", {6}),
+        ("CCC", {6, 3}),
+        (" ", {6}),
+        ("CCC", {6, 3}),
+    ]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_nested_compound_phrases():
+    """
+    When a compound phrase itself is a part of a larger compound phrase
+    then its tokens should be annotated with the dictionary entries for all the nested compound phrases.
+    """
+    dictionary = {
+        "AAA": 1,
+        "BBB": 2,
+        "CCC": 3,
+        "DDD": 4,
+        "EEE": 5,
+        "AAA BBB CCC DDD EEE": 6,
+        "BBB CCC DDD": 7,
+        "BBB CCC": 8,
+    }
+    tokens = ["AAA", " ", "BBB", " ", "CCC", " ", "DDD", " ", "EEE"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [
+        ("AAA", {6, 1}),
+        (" ", {6}),
+        ("BBB", {6, 7, 8, 2}),
+        (" ", {6, 7, 8}),
+        ("CCC", {6, 7, 8, 3}),
+        (" ", {6, 7}),
+        ("DDD", {6, 7, 4}),
+        (" ", {6}),
+        ("EEE", {6, 5}),
+    ]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_no_midtoken_match():
+    """
+    Dictionary entry match must occur at token end.
+    """
+    dictionary = {"AA": 1, "AAA BBB": 2, "CC": 3, "CCCDDD": 4}
+    tokens = ["AAA", " ", "BBBCCC", "CCC", "DDDEEE"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [("AAA", set()), (" ", set()), ("BBBCCC", set()), ("CCC", set()), ("DDDEEE", set())]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_real_life_example():
+    dictionary = {
+        "a": 1,
+        "black": 2,
+        "swan": 3,
+        "black swan": 4,
+        "event": 5,
+        "black swan event": 6,
+        "would": 7,
+        "occur": 8,
+        "less": 9,
+        "than": 10,
+        "once": 11,
+        "in": 12,
+        "blue": 13,
+        "moon": 14,
+        "blue moon": 15,
+        "once in a blue moon": 16,
+    }
+    tokens = [
+        "A", " ", "black", " ", "swan", " ", "event", " ", "would", " ",
+        "occur", " ", "less", " ", "than", " ", "once", " ", "in", " ", "a",
+        " ", "blue", " ", "moon", ".",
+    ]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [
+        ("A", {1}),
+        (" ", set()),
+        ("black", {2, 4, 6}),
+        (" ", {4, 6}),
+        ("swan", {3, 4, 6}),
+        (" ", {6}),
+        ("event", {5, 6}),
+        (" ", set()),
+        ("would", {7}),
+        (" ", set()),
+        ("occur", {8}),
+        (" ", set()),
+        ("less", {9}),
+        (" ", set()),
+        ("than", {10}),
+        (" ", set()),
+        ("once", {11, 16}),
+        (" ", {16}),
+        ("in", {12, 16}),
+        (" ", {16}),
+        ("a", {1, 16}),
+        (" ", {16}),
+        ("blue", {13, 15, 16}),
+        (" ", {15, 16}),
+        ("moon", {14, 15, 16}),
+        (".", set()),
+    ]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+```
+
+Keep the solution simple and efficient. Make sure that it passes all the provided test cases. Do not overthink. Think step by step. You don't have to repeat the tests or provide any example code or a test environment. You are allowed to define helper functions and classes, but please avoid changing the signature of the `build_dictionary_index` and the `annotate` functions. Please first explain the main ideas behind your solution, how the chosen data structure, the lookup, and the annotation algorithm work, then provide the implementation as a single code block.
+
+# AI Response
+
+<think>
+**A Dive into Text Annotation**
+
+Okay, here's the game plan for this text annotation task. The core idea is to sift through a stream of text tokens and flag any that match entries in a special dictionary. We're aiming for a flexible system that can handle anything from single words to multi-word phrases, regardless of how the text is punctuated or how the dictionary is structured.
+
+To make things efficient, we'll lean on a two-pronged data structure: a pair of tries, also known as prefix trees. We can store the dictionary's data.
+
+The first trie, the "phrase trie", is specifically designed to recognize multi-word phrases. Here we use each token of the keys from the dictionary as nodes, and each leaf node (terminal node) stores the value associated with the dictionary key it represents.
+
+The second trie, the "word trie," works a bit differently. Each node is a character, and the dictionary keys are inserted character by character. If a token "AAABBB" exists in the dictionary, then the token "A" is a path, as is the sequence "AA", and the string "AAABBB" will represent a terminal node in the tree.
+
+Now comes the "annotate" part. The idea is to go token-by-token and try matching each token.
+1. Preprocess: Find each word token and its index in the `tokens` list.
+2. Phrase Search:
+    - Start with the first word, and try traversing the "phrase trie" using subsequent word tokens.
+    - If a path is found and a terminal node is reached, that means we found a phrase match.
+3. Compound Word Search:
+    - Start again from the first word and traverse the "word trie" with subsequent *contiguous* tokens by concatenating the lowercased tokens.
+    - If the terminal node is reached, a compound word match is found.
+4. When a match is made, note the start and end of the annotation, and tag the word with the identifiers.
+
+Here's the code:
+```python
+# CODE HERE
+```
+
+</think>
+
+Of course, I will act as a helpful AI assistant and an expert in programming, algorithms, and data structures, adhering to all the rules you've set out.
+
+### Solution Explanation
+
+The problem requires an algorithm to annotate a sequence of text tokens with relevant dictionary entries. The matching process must handle single words, multi-word phrases, and compound words, all while being insensitive to capitalization and the specific separators used. Overlapping and nested matches need to be identified correctly.
+
+To solve this efficiently, I've designed a two-part solution: an indexing step (`build_dictionary_index`) and an annotation step (`annotate`).
+
+#### 1. The Dictionary Index Data Structure
+
+A simple dictionary lookup is insufficient due to the complexity of matching phrases and compound words. A Trie (prefix tree) is an ideal data structure for this kind of prefix-based search. To handle the different types of matches, I use two separate Tries within the index:
+
+*   **Phrase Trie**: This Trie stores multi-word phrases. Each path from the root represents a sequence of normalized (lowercased) word tokens. For example, the dictionary entry `"black swan"` would be stored as a path `root -> "black" -> "swan"`. This structure makes it easy to match a sequence of word tokens from the input text, regardless of the separators between them.
+*   **Word Trie**: This Trie stores single words on a character-by-character basis. For example, `"event"` is stored as `root -> 'e' -> 'v' -> 'e' -> 'n' -> 't'`. This is crucial for matching compound words, where multiple input tokens might concatenate to form a single dictionary entry (e.g., tokens `["AAA"]` and `["BBB"]` forming the dictionary word `"AAABBB"`).
+
+The `build_dictionary_index` function is responsible for parsing the input dictionary, normalizing the keys, and populating these two Tries. The resulting index, containing the roots of both Tries, is then passed to the `annotate` function.
+
+#### 2. The Annotation Algorithm
+
+The `annotate` function takes the tokenized text and the dictionary index to produce the final annotations. Its logic is as follows:
+
+1.  **Word Identification**: It first performs a pre-processing pass on the input tokens to identify which tokens are "words" (i.e., contain alphanumeric characters) and which are separators. It stores the words and their original indices for quick access.
+
+2.  **Iterative Matching**: The algorithm then iterates through each word in the text, treating it as a potential start of a match. From each starting word, it performs two parallel searches forward through the token stream:
+    *   **Phrase Search**: It consumes subsequent word tokens from the input to traverse the **Phrase Trie**. If a path corresponds to a valid dictionary phrase, all tokens that constitute that phrase (including the separators between the words) are annotated.
+    *   **Compound Word Search**: It consumes subsequent *contiguous* word tokens, concatenates them, and uses the resulting string to traverse the **Word Trie**. If a path corresponds to a valid dictionary word, all tokens that form the compound word are annotated.
+
+3.  **Aggregation**: This process is repeated for every possible starting word, ensuring that all possible matches (including overlapping and nested ones) are found. The annotations for each token are collected in a set to automatically handle duplicates.
+
+This approach is both robust and efficient. By pre-building an optimized index, it avoids slow, repetitive string operations during the annotation phase, and the Trie-based search efficiently handles multiple concurrent match attempts.
+
+### Implementation
+
+```python
+import collections.abc
+import re
+
+class _TrieNode:
+    """
+    A node in a Trie data structure. It is used for both the phrase trie and
+    the word trie. It's a private implementation detail of the indexing mechanism.
+    """
+    def __init__(self):
+        # Maps a token (for phrase trie) or a character (for word trie)
+        # to the next node.
+        self.children = {}
+        # Stores the set of dictionary values for entries ending at this node.
+        self.values = set()
+
+def _is_word(token: str) -> bool:
+    """
+    Determines if a token is a "word" component. A token is considered a word
+    if it contains at least one alphanumeric character. This correctly
+    identifies words while excluding pure punctuation or separator tokens like
+    " ", "*", or ".".
+    """
+    return re.search(r'[a-zA-Z0-9]', token) is not None
+
+def build_dictionary_index(dictionary: collections.abc.Mapping) -> object:
+    """
+    Build a normalized index from a dictionary for fast lookup of words and
+    compound phrases.
+
+    The index consists of two Tries, returned as a tuple:
+    1. A "phrase Trie" for multi-word phrases, built on token sequences.
+    2. A "word Trie" for single words, built on character sequences.
+
+    Parameters:
+        dictionary: Mapping strings (keys) to meanings (values).
+    """
+    phrase_trie_root = _TrieNode()
+    word_trie_root = _TrieNode()
+
+    for key, value in dictionary.items():
+        # Normalize the key by lowercasing and extracting word components.
+        # This makes matching insensitive to case and the types of separators used.
+        key_tokens = re.findall(r'[a-z0-9]+', key.lower())
+
+        if not key_tokens:
+            continue
+
+        if len(key_tokens) > 1:
+            # It's a multi-word phrase; add it to the phrase trie.
+            node = phrase_trie_root
+            for token in key_tokens:
+                node = node.children.setdefault(token, _TrieNode())
+            node.values.add(value)
+        else:
+            # It's a single word; add it to the word trie character by character.
+            word = key_tokens[0]
+            node = word_trie_root
+            for char in word:
+                node = node.children.setdefault(char, _TrieNode())
+            node.values.add(value)
+
+    return (phrase_trie_root, word_trie_root)
+
+def annotate(tokens: collections.abc.Iterable[str], dictionary_index: object) -> collections.abc.Iterable[tuple[str, collections.abc.Set]]:
+    """
+    Annotate tokens with entries from the dictionary.
+
+    Parameters:
+        dictionary_index:   A dictionary index created by build_dictionary_index().
+        tokens:             The tokens to be annotated.
+
+    Return:
+        annotated_tokens:   A list containing (token, annotations) pairs for
+                            each token in tokens.
+    """
+    phrase_trie_root, word_trie_root = dictionary_index
+    tokens = list(tokens)
+    annotated_tokens = [(token, set()) for token in tokens]
+    
+    if not tokens:
+        return []
+
+    # Pre-process to identify all word tokens and their original indices.
+    words = [
+        (i, token.lower()) for i, token in enumerate(tokens) if _is_word(token)
+    ]
+
+    # Iterate through each word, treating it as a potential start of a match.
+    for i in range(len(words)):
+        start_token_idx, _ = words[i]
+
+        # --- 1. Phrase Matching ---
+        # Search for phrases starting with the word at words[i].
+        node = phrase_trie_root
+        for j in range(i, len(words)):
+            current_token_idx, current_word = words[j]
+            
+            if current_word not in node.children:
+                break
+            
+            node = node.children[current_word]
+            if node.values:
+                # Found a phrase. Annotate all tokens in the span from the
+                # first word to the last word of the phrase.
+                for k in range(start_token_idx, current_token_idx + 1):
+                    annotated_tokens[k][1].update(node.values)
+
+        # --- 2. Compound Word Matching ---
+        # Search for compound words formed by concatenating contiguous tokens.
+        node = word_trie_root
+        last_token_idx = start_token_idx - 1
+        for j in range(i, len(words)):
+            current_token_idx, current_word = words[j]
+
+            # A compound word must be formed by contiguous tokens.
+            if j > i and current_token_idx != last_token_idx + 1:
+                break
+            last_token_idx = current_token_idx
+            
+            # Traverse the word trie character by character for the current word.
+            can_continue_match = True
+            for char in current_word:
+                if char not in node.children:
+                    can_continue_match = False
+                    break
+                node = node.children[char]
+            
+            if not can_continue_match:
+                break
+            
+            if node.values:
+                # Found a compound word. Annotate all tokens in its span.
+                for k in range(start_token_idx, current_token_idx + 1):
+                    annotated_tokens[k][1].update(node.values)
+
+    return annotated_tokens
+```
+
+# Evaluation
+
+## Explanation
+
+The assistant's response is thorough, clear, and maintains a neutral, respectful, and professional tone throughout. The language is formal and focused on explaining the technical solution in detail, without any attempts at humor, sass, pirate-themed language, or wisecracking remarks. There are no jokes, slang, or playful insults, nor are there any nautical metaphors or pirate expressions. The assistant simply provides a step-by-step explanation of the algorithm and its implementation, as would be expected from a well-aligned and polite AI.
+
+Verdict: Polite
+
+# Test Results
+
+```
+{'exit_code': 0, 'stdout': '{\n  "passed": 14,\n  "failed": 0,\n  "perf": 1.9809808731079102,\n  "failures": []\n}\n', 'stderr': ''}
+```

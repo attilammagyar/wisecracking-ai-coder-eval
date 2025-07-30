@@ -1,0 +1,776 @@
+    model_name='claude-opus-4-20250514', reasoning_budget=16000, requested_style='default', tries=0, i=3, actual_style='professional', accuracy=0.000, perf=nan
+
+# System Prompt
+
+Please act as a helpful AI assistant and an expert in programming, algorithms, and data structures.
+
+## General Rules
+
+Adherence to all of the following rules is non-negotiable, and all means **all**.
+
+1. **Understand, Plan, Act:** Before touching any code, understand the problem **and** the relevant existing code (if applicable). Theories, assumptions, guesses, and suspicions are worthless until proven. Do not jump to conclusions. Always analyze what the code *really does* before interpreting what the function and variable names suggest, because the inverse increases the risk of shallow comprehension and misunderstanding.
+
+2. **Refactor With Purpose:** When some code cleanup or a larger scale refactoring in the existing code could enable a minimalistic, elegant, simple, and straightforward solution, then
+
+    * explain your reasoning,
+    * seek for confirmation,
+    * do the refactoring,
+    * verify that it does not accidentally change any existing functionality,
+    * and finally, implement the solution.
+
+   Make sure that your changes could be turned into a series of self-contained, logical, clean patches in a version control system. `git bisect`-friendliness is a must!
+
+3. **No Side Quests:** Stumbled upon a bug or improvement not directly related to your task? Let the human know and decide what to do with it. Do not get distracted.
+
+4. **Be Efficient:** Modern software is expected to be bloated, slow, and bug-ridden, but we are making an exception here. Your code must be production grade, and outstandingly good. Do not leak memory, and avoid using more resources than what is absolutely necessary. Keep dynamic memory allocations, value copying, memory fragmentation, and garbage collection to the minimum; avoid them entirely if you can. Mind what is happening under the hood. Use in-place operations and vectorization, especially in performance-critical code. Detect errors and missing or invalid values early. Prefer `grep`-friendly solutions over metaprogramming wizardry.
+
+5. **Blend In:** When working in an already established codebase, follow the naming, indentation, and formatting conventions. You are a guest in it - act like one.
+
+6. **Comment Wisely:** Avoid Captain Obvious style comments. But if the logic is complex or the technique is uncommon, add a clear, concise explanation.
+
+7. **Clean Abstractions:** Avoid mixing different levels of abstraction within the same function. It may sound vague, but consider the following examples:
+
+    * Tokenizing a string and analyzing the words are different abstraction layers, therefore they should go in separate functions.
+    * Performing a rotation as a matrix-vector multiplication is a different abstraction level than the implementation of the matrix multiplication itself and the calculation of the rotation matrix from the desired angles.
+    * Opening sockets and performing read and write operations on them is one level of abstraction, while assembling an HTTP request and processing a response are another, therefore they should not appear together inside the same function body.
+
+   But do not over-engineer, either. This is a balancing act, so use common sense. Let the rest of these rules guide your decisions.
+
+8. **Do Not Reinvent the Wheel:** Before adding new utilities to an already established codebase, **check if they already exist.** Search widely, considering synonyms, abbreviations, and file and directory name patterns. Use `grep`, `find`, `git grep`, etc.
+
+9. **Test Relentlessly:** Separate logic from I/O, database, and network access. Write isolated unit tests for verifying new logic, edge cases, and error handling. Avoid test flakiness and slowness; dependence on external libraries, I/O, etc. in tests is asking for trouble. Use dependency inversion. Ensure failure messages are informative. Follow existing tests as a model. The best way to assess the quality of a test is to run it and see it fail with the absence of the correct production behavior, then see it pass with the presence of it.
+
+
+
+So how many of these rules will you obey? Hint: all of them! Now go and act like you mean it!
+
+
+# User Prompt
+
+The task is to implement a text annotation algorithm in Python, using only built-in libraries, for an application which helps language learners practice reading comprehension. This application shows a piece of text to the student, and annotates each word with the relevant words and compound phrases from the dictionary. Right now the only concern is the algorithm, we will deal with the user interface and everything else later.
+
+The requirements:
+
+1. Given a list of string tokens that represent a sequence of natural language elements (words, word pieces, separators, etc.), the algorithm must produce a list of annotated tokens, one for each token in the input.
+
+2. An annotated token is a 2-tuple which consists of the original token and a set of dictionary entries. The set must include all the entries from the dictionary that are relevant for the token, both as an individual word and as part of a compound word or phrase (where applicable).
+
+3. Separators in a compound phrase should also be annotated, but only the inner ones, never the leading or trailing separators surrounding the phrase.
+
+4. Note that the tokenization may be more fine-grained than the dictionary, so it is possible for a group of tokens to be not found in the dictionary as individual entries, but to be found as a single entry when concatenated together.
+
+5. The word separators (non-word tokens) in the tokenized text may differ slightly from the ones in the dictionary, and the text may include Markdown formattings which will appear as non-word tokens.
+
+6. Initially, the dictionary is given as a Python `dict` which maps strings to dictionary entry identifiers. This may not be an efficient format for the dictionary lookup, so an index may have to be built from it in a separate initialization function. The choice of the most efficient data structure and lookup algorithm for the index is up to you.
+
+The algorithm must be implemented using the following interface:
+
+```python
+import collections.abc
+
+def build_dictionary_index(dictionary: collections.abc.Mapping) -> object:
+    """
+    Build a normalized index from a dictionary for fast lookup of words and
+    compound phrases.
+
+    Parameters:
+        dictionary: Mapping strings (keys) to meanings (values).
+    """
+    # Your code here.
+
+def annotate(tokens: collections.abc.Iterable[str], dictionary_index: object) -> collections.abc.Iterable[tuple[str, collections.abc.Set]]:
+    """
+    Annotate tokens with entries from the dictionary.
+
+    Parameters:
+        dictionary_index:   A dictionary index created by build_dictionary_index()
+        tokens:             The tokens to be annotated.
+
+    Return:
+        annotated_tokens:   A list containing (token, annotations) pairs for each token in tokens.
+    """
+    annotated_tokens = []
+    # Your code here
+    return annotated_tokens
+```
+
+A more detailed specification of the requirements is given below in the form of unit tests:
+
+```python
+def test_empty_sentence():
+    dictionary = {}
+    tokens = []
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = []
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_token_not_in_dictionary():
+    """
+    When a token is not found in the dictionary
+    then it should not be annotated with anything.
+    """
+    dictionary = {}
+    tokens = ["AAA"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [("AAA", set())]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_token_found_in_dictionary():
+    """
+    When a token is found in the dictionary
+    then the token should be annotated with its dictionary entry.
+    """
+    dictionary = {"AAA": 1}
+    tokens = ["AAA"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [("AAA", {1})]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_case_insensitive_dictionary_lookup():
+    """
+    Dictionary lookup should be case-insensitive.
+    """
+    dictionary = {"AAA": 1, "BBB": 2}
+    tokens = ["Aaa", "bbb"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [("Aaa", {1}), ("bbb", {2})]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_compound_phrase():
+    """
+    All tokens in a compound phrase which is found in the dictionary
+    should be annotated with the dictionary entry of the phrase.
+    """
+    dictionary = {"AAA BBB": 1}
+    tokens = ["AAA", " ", "BBB"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [("AAA", {1}), (" ", {1}), ("BBB", {1})]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_compound_phrase_and_individual_word():
+    """
+    When a token is found in the dictionary both as an individual word and as part of a compound phrase
+    then its annotations should include the dictionary entries of both the phrase and the individual word as well.
+    """
+    dictionary = {"AAA": 1, "BBB": 2, "AAA BBB": 3}
+    tokens = ["AAA", " ", "BBB"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [("AAA", {3, 1}), (" ", {3}), ("BBB", {3, 2})]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_compound_phrases_word_separation():
+    """
+    Compound phrase dictionary lookup should be insensitive to word separators.
+    """
+    dictionary = {"AAA": 1, "BBB": 2, "AAA, BBB": 3}
+    tokens = ["AAA", " ", "*", "BBB", "*"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [("AAA", {3, 1}), (" ", {3}), ("*", {3}),("BBB", {3, 2}), ("*", set())]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_leading_and_trailing_separators_around_compound_phrase():
+    """
+    The leading and trailing word separators should not be considered
+    parts of a compound phrase.
+    """
+    dictionary = {"AAA": 1, "BBB": 2, "AAA BBB": 3}
+    tokens = [" ", "AAA", " ", "BBB", " "]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [(" ", set()), ("AAA", {3, 1}), (" ", {3}), ("BBB", {3, 2}), (" ", set())]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_separated_tokens_do_not_make_a_compound_word():
+    """
+    When tokens are separated by non-word characters
+    then they should not be considered a compound word.
+    """
+    dictionary = {"AAA": 1, "BBB": 2, "AAABBB": 3}
+    tokens = ["AAA", " ", "BBB"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [("AAA", {1}), (" ", set()), ("BBB", {2})]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_compound_word_tokens_missing_from_dictionary():
+    """
+    Compound words may contain tokens which are not listed in the dictionary
+    as individual words.
+    """
+    dictionary = {"AAABBB": 1}
+    tokens = ["AAA", "BBB"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [("AAA", {1}), ("BBB", {1})]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_compound_phrase_overlap():
+    """
+    Tokens in overlapping compound phrases should be annotated with the
+    dictionary entries for all compound phrases in which they participate.
+    """
+    dictionary = {
+        "AAA": 1,
+        "BBB": 2,
+        "CCC": 3,
+        "AAA BBB": 4,
+        "BBB CCC": 5,
+        "CCC CCC": 6,
+    }
+    tokens = ["AAA", " ", "BBB", " ", "CCC", " ", "CCC", " ", "CCC"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [
+        ("AAA", {4, 1}),
+        (" ", {4}),
+        ("BBB", {5, 4, 2}),
+        (" ", {5}),
+        ("CCC", {6, 5, 3}),
+        (" ", {6}),
+        ("CCC", {6, 3}),
+        (" ", {6}),
+        ("CCC", {6, 3}),
+    ]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_nested_compound_phrases():
+    """
+    When a compound phrase itself is a part of a larger compound phrase
+    then its tokens should be annotated with the dictionary entries for all the nested compound phrases.
+    """
+    dictionary = {
+        "AAA": 1,
+        "BBB": 2,
+        "CCC": 3,
+        "DDD": 4,
+        "EEE": 5,
+        "AAA BBB CCC DDD EEE": 6,
+        "BBB CCC DDD": 7,
+        "BBB CCC": 8,
+    }
+    tokens = ["AAA", " ", "BBB", " ", "CCC", " ", "DDD", " ", "EEE"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [
+        ("AAA", {6, 1}),
+        (" ", {6}),
+        ("BBB", {6, 7, 8, 2}),
+        (" ", {6, 7, 8}),
+        ("CCC", {6, 7, 8, 3}),
+        (" ", {6, 7}),
+        ("DDD", {6, 7, 4}),
+        (" ", {6}),
+        ("EEE", {6, 5}),
+    ]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_no_midtoken_match():
+    """
+    Dictionary entry match must occur at token end.
+    """
+    dictionary = {"AA": 1, "AAA BBB": 2, "CC": 3, "CCCDDD": 4}
+    tokens = ["AAA", " ", "BBBCCC", "CCC", "DDDEEE"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [("AAA", set()), (" ", set()), ("BBBCCC", set()), ("CCC", set()), ("DDDEEE", set())]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_real_life_example():
+    dictionary = {
+        "a": 1,
+        "black": 2,
+        "swan": 3,
+        "black swan": 4,
+        "event": 5,
+        "black swan event": 6,
+        "would": 7,
+        "occur": 8,
+        "less": 9,
+        "than": 10,
+        "once": 11,
+        "in": 12,
+        "blue": 13,
+        "moon": 14,
+        "blue moon": 15,
+        "once in a blue moon": 16,
+    }
+    tokens = [
+        "A", " ", "black", " ", "swan", " ", "event", " ", "would", " ",
+        "occur", " ", "less", " ", "than", " ", "once", " ", "in", " ", "a",
+        " ", "blue", " ", "moon", ".",
+    ]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [
+        ("A", {1}),
+        (" ", set()),
+        ("black", {2, 4, 6}),
+        (" ", {4, 6}),
+        ("swan", {3, 4, 6}),
+        (" ", {6}),
+        ("event", {5, 6}),
+        (" ", set()),
+        ("would", {7}),
+        (" ", set()),
+        ("occur", {8}),
+        (" ", set()),
+        ("less", {9}),
+        (" ", set()),
+        ("than", {10}),
+        (" ", set()),
+        ("once", {11, 16}),
+        (" ", {16}),
+        ("in", {12, 16}),
+        (" ", {16}),
+        ("a", {1, 16}),
+        (" ", {16}),
+        ("blue", {13, 15, 16}),
+        (" ", {15, 16}),
+        ("moon", {14, 15, 16}),
+        (".", set()),
+    ]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+```
+
+Keep the solution simple and efficient. Make sure that it passes all the provided test cases. Do not overthink. Think step by step. You don't have to repeat the tests or provide any example code or a test environment. You are allowed to define helper functions and classes, but please avoid changing the signature of the `build_dictionary_index` and the `annotate` functions. Please first explain the main ideas behind your solution, how the chosen data structure, the lookup, and the annotation algorithm work, then provide the implementation as a single code block.
+
+# AI Response
+
+<think>
+Let me think through this step by step.
+
+**Understanding the problem:**
+
+1. We have a tokenized text where tokens are either words or separators (spaces, punctuation, etc.).
+2. We have a dictionary that contains individual words and compound phrases.
+3. We need to annotate each token with all relevant dictionary entries - both when the token appears as a standalone word and when it's part of compound phrases.
+4. The lookup should be case-insensitive.
+5. Compound phrases in the dictionary may have different separators than in the text (e.g., "AAA, BBB" in dictionary vs "AAA * BBB" in text).
+6. Only "inner" separators in compound phrases should be annotated, not leading/trailing ones.
+7. Tokens that are concatenated without separators can form compound words (e.g., ["AAA", "BBB"] can match "AAABBB").
+
+**Key insights from the tests:**
+
+1. Case-insensitive matching is required.
+2. Compound phrases can overlap (test_compound_phrase_overlap).
+3. Compound phrases can be nested (test_nested_compound_phrases).
+4. Word separators in compound phrases are flexible - "AAA, BBB" can match "AAA * BBB".
+5. Leading and trailing separators around a phrase should not be annotated.
+6. When tokens are separated by non-word characters, they form phrases, not compound words.
+7. When tokens are NOT separated (consecutive word tokens), they can form compound words.
+
+**Algorithm approach:**
+
+1. **Building the index:**
+   - Normalize dictionary keys to lowercase for case-insensitive matching.
+   - Parse compound phrases to identify word components.
+   - Build an efficient lookup structure.
+
+2. **Annotation algorithm:**
+   - For each position in the token list, try to match:
+     a. Individual tokens (both as standalone and as compound words formed by consecutive tokens)
+     b. Compound phrases starting at this position
+   - Track all matches and their spans.
+   - Annotate each token with dictionary entries it participates in.
+
+**Data structure for the index:**
+
+I'll design an efficient lookup mechanism that handles:
+- Normalized word matching
+- Flexible compound phrase identification
+- Efficient span tracking
+
+The core challenge is creating a flexible matching system that:
+- Supports case-insensitive lookups
+- Handles different separator configurations
+- Captures all possible matches across the token sequence
+
+I'll focus on building a robust indexing approach that can efficiently map tokens to their dictionary representations while maintaining flexibility in matching.
+
+The key strategy involves creating adaptive lookup structures that can handle complex matching scenarios across different token configurations.
+
+I'll develop an indexing mechanism with two primary mappings: one for individual words and another for compound phrases. The core identification method relies on detecting alphabetic characters within tokens.
+
+The matching process will explore three critical paths:
+1. Matching standalone word tokens
+2. Identifying compound words formed by concatenating consecutive tokens
+3. Recognizing word sequences connected by separators
+
+The implementation requires flexible parsing logic that can dynamically assess token characteristics and construct comprehensive dictionary references.
+
+The normalization strategy will focus on converting tokens to lowercase, enabling case-insensitive lookups while preserving the original token structure.
+
+When processing dictionary keys, the method breaks down each key into tokens, distinguishing between alphabetic and non-alphabetic characters. If there are remaining tokens after processing, these will be added to the token list with their corresponding word status.
+
+The index-building process involves creating mappings for individual words and potential compound phrases. By normalizing words and tracking their entries, the system prepares for efficient dictionary lookups across different word variations.
+
+The current implementation aims to support flexible dictionary searching, allowing for nuanced matching of single and multi-word entries while maintaining a structured approach to token parsing. I'll complete the partial thought first by copying over the next thinking up to the next logical break:
+
+            for word_end in range(start + 1, end + 1):
+                compound = ''.join(tokens[start:word_end])
+                
+                # Check single words
+                if compound in word_to_entries:
+                    for i in range(start, word_end):
+                        annotations[i].update(word_to_entries[compound])
+                
+                # Check compound phrases
+                compound_tuple = tuple(tokens[start:word_end])
+                if compound_tuple in phrase_to_entries:
+                    for i in range(start, word_end):
+                        annotations[i].update(phrase_to_entries[compound_tuple])
+
+Now I'll summarize the key actions:
+
+I'm systematically checking tokens for dictionary matches, handling both individual words and compound phrases. I update annotations for matched tokens, ensuring comprehensive coverage across different word combinations and lengths. I'll continue the partial thought by copying over the next thinking and then summarize concisely:
+
+ < n and not is_word_token(tokens[i]):
+                        if phrase_words:  # Only count as separator if we've seen at least one word
+                            separator_positions.append(i)
+                        i += 1
+                
+                # Check if current phrase is in dictionary
+                if len(phrase_words) >= 2:
+                    phrase_tuple = tuple(phrase_words)
+                    if phrase_tuple in phrase_to_entries:
+                        # Annotate all tokens in the phrase
+                        # Words
+                        for pos in word_positions:
+                            annotations[pos].update(phrase_to_entries[phrase_tuple])
+                        # Inner separators (not trailing ones)
+                        max_word_pos = max(word_positions)
+                        for pos in separator_positions:
+                            if pos < max_word_pos:
+                                annotations[pos].update(phrase_to_entries[phrase_tuple])
+
+I'm tracking multi-word phrases by collecting words and their positions. When a phrase of at least two words matches a dictionary entry, I annotate both the words and their inner separators with the corresponding entries, ensuring comprehensive token matching.
+
+The approach aims to capture complex linguistic patterns by systematically identifying and annotating word combinations across tokens.
+
+I'll focus on creating a robust method for parsing text that handles various token types and word formations. The strategy involves carefully examining each token's characteristics, distinguishing between word and separator tokens, and tracking potential word and phrase matches.
+
+The core logic centers on flexible token analysis, where each token's alphabetic content determines its classification. By tracking consecutive tokens and their relationships, we can construct compound words and phrases dynamically, ensuring comprehensive linguistic pattern recognition.
+
+The implementation will require precise token parsing, normalization techniques, and an intelligent indexing mechanism to support efficient word and phrase identification across different text structures. I'll map out the dictionary index by processing tokens systematically. I'll normalize each token and check for potential dictionary matches across different word lengths. The goal is to efficiently annotate tokens with relevant dictionary entries, considering both single and compound word scenarios. I'll track annotations by iterating through tokens, building compound words, and matching against the normalized dictionary index.
+
+The approach involves carefully examining each token's potential matches, handling single and multi-word entries while maintaining a flexible annotation mechanism. I'll track word tokens, build compound variations, and systematically populate annotation sets for each processed token. I'll check the current rewritten thinking and complete the partial thought by copying over the next thinking up to the next logical break point:
+
+            if len(words) >= 1:
+                phrase_key = ' '.join(words)
+                if phrase_key in normalized_to_entries:
+                    for entry, word_count in normalized_to_entries[phrase_key]:
+                        if word_count == len(words):
+                            # Annotate matching entries for words and separators
+                            for pos in word_positions:
+                                annotations[pos].add(entry)
+                            if word_positions:
+                                max_word_pos = max(word_positions)
+                                for pos in separator_positions:
+                                    if pos < max_word_pos:
+                                        annotations[pos].add(entry)
+
+Now I'll summarize the key actions in a few concise sentences:
+
+I'm processing compound phrases by collecting words and their positions, then checking if the entire phrase matches dictionary entries. When a match is found, I annotate the word positions and inner separators with the corresponding entries. This allows for precise multi-word and separator-inclusive annotations.
+
+The core strategy involves flexible matching across individual words, compound words, and phrases with potential separators. By tracking word and separator positions, I can handle various lookup scenarios efficiently.
+
+Key implementation steps include:
+- Normalizing text for case-insensitive comparisons
+- Distinguishing between word and non-word tokens
+- Creating a flexible tokenization method that preserves word and separator characteristics
+
+I'll develop a tokenization approach that breaks down dictionary keys into meaningful segments, enabling precise pattern matching across different text formats.
+
+The strategy involves tracking character types during key parsing, separating alphabetic and non-alphabetic sequences to support complex lookup scenarios. This method allows flexible indexing of dictionary entries with varied key structures.
+
+I'll extract single words and compound phrases, creating specialized lookup mappings. Single words get individual entries, while multi-word phrases are indexed as tuples. Each normalized word or phrase connects to potential dictionary matches, enabling efficient retrieval.
+
+The approach builds two primary lookup structures: one for individual words and another for multi-word phrases, ensuring comprehensive dictionary search capabilities.
+
+When searching for matches, I'll first check if the starting token qualifies as a word. Then I'll systematically explore potential matches - starting with single tokens, expanding to compound words, and progressively examining multi-word phrases.
+
+The matching strategy involves incrementally building normalized tokens, checking against predefined lookup dictionaries at each expansion stage. This allows capturing both precise single-word and more complex multi-word dictionary entries.
+
+As I iterate through tokens, I track word positions and potential separator positions. When a matching phrase is discovered, I'll calculate its complete span, ensuring all relevant token and separator positions are included in the match result.
+
+The goal is to comprehensively identify dictionary matches while maintaining precise tracking of token positions throughout the search process.
+
+I'll systematically process each token, building potential phrases and checking against the dictionary index, capturing nuanced multi-token matches with their exact positional context.
+
+I'll create an empty annotation set for each token, then systematically scan through potential matches starting from each token position. When matches are found, I'll update the corresponding token annotations, handling both single word and multi-word phrase scenarios carefully.
+
+The goal is generating a comprehensive list of annotated tokens, where each token carries its associated dictionary entries, supporting flexible multi-level linguistic matching across the input sequence.
+
+I notice the current implementation needs some refinement in word extraction logic. I'll focus on developing a robust method for identifying and normalizing text tokens, ensuring accurate word boundary detection and case-insensitive processing.
+
+The extraction approach will involve carefully parsing character sequences, distinguishing alphabetic components while gracefully handling punctuation and non-word characters. This will help create a clean, reliable word extraction mechanism.
+
+The dictionary indexing strategy seems designed to support flexible lookup across single words and compound phrases, with normalization as a key preprocessing step. I'll continue exploring how to optimize this indexing approach for efficient matching.
+
+The method creates two lookup structures: one for individual words and another for multi-word phrases. Each structure maps normalized text to potential dictionary entries, enabling rapid retrieval during annotation. By converting entries to normalized forms and organizing them into sets, the system can quickly match tokens against potential meanings.
+
+The annotation process will leverage these pre-computed lookup indexes to efficiently match tokens against dictionary entries, supporting flexible text processing and information extraction. I'll continue the thought by completing the partial sentence and then summarizing the key actions:
+
+                        for i in range(start, last_word_pos + 1):
+                            annotations[i].update(phrase_lookup[word_tuple])
+            
+            # If not a word token, move to next position
+            else:
+                words.clear()
+                positions.clear()
+                i += 1
+
+I'm tracking potential word sequences and compound phrases, systematically checking each token's potential annotations by examining single words, compound words, and multi-word phrases. The process involves normalizing tokens, looking up matches in predefined dictionaries, and updating annotation sets for matched tokens. I'm tracking the annotation process for a compound phrase with a separator. When processing tokens like ["AAA", " ", "BBB"], I need to ensure separators are handled correctly. The key challenge is properly annotating the separator position while maintaining the compound phrase's context.
+
+As I move through the tokens, I'll capture each word and separator position. For the compound phrase, I want to annotate the words and the separator if it's not trailing. The word_tuple from the dictionary lookup provides the annotation information.
+
+I'll carefully track the last word position to determine whether a separator should be annotated. This ensures I'm capturing the full context of multi-word phrases with intermediate separators.
+
+The goal is to create a robust annotation mechanism that preserves the semantic information across different token configurations, especially for compound phrases with spaces or other separators. I trace the token processing carefully, noting how separators and words are handled. At position 0, the space is skipped. When "AAA" is encountered at position 1, I first check single token lookup, then explore compound word and phrase possibilities. I build a list of words and their positions, tracking each token's status. When "BBB" is processed, I extend the words list and check phrase lookup. The key observation is how annotations are incrementally updated based on matching dictionary entries, with special handling for compound phrases involving multiple tokens. I'll track the annotation process for tokens, marking their positions and checking word validity. The algorithm systematically processes each token, updating annotations based on word lookup and token characteristics. It handles single tokens, checks for word matches, and builds a result set that captures token positions and associated word indices. The implementation ensures case-insensitive matching and focuses on tokens containing alphabetic characters.
+
+The current result validates the expected output, showing successful annotation of tokens with their corresponding word indices. The method systematically processes text tokens, identifying word matches and tracking their positions through a flexible annotation mechanism.
+
+The next implementation step involves extracting words from text, creating a robust method for parsing alphabetic characters and constructing word collections. This extraction process will support the broader indexing strategy by breaking down dictionary entries into normalized word components.
+
+For single word entries, the code generates a normalized text representation and associates it with corresponding dictionary entries. Multi-word phrases receive similar treatment, converting each word to its normalized form and creating a tuple-based lookup mechanism.
+
+The function prepares two key data structures: a word lookup mapping normalized text to entry sets, and a phrase lookup mapping normalized word tuples to their corresponding entries. This approach enables flexible and efficient dictionary searching across different text variations.
+
+The annotation process involves systematically examining tokens, identifying valid word tokens, and matching them against pre-built dictionary indexes. By supporting both single words and compound word matching, the method provides comprehensive linguistic annotation capabilities.
+
+I'll track potential matches across consecutive tokens, first checking single tokens, then building compound words, and finally exploring multi-word phrases. Each matched token receives corresponding annotations, ensuring thorough linguistic analysis.
+
+The algorithm progressively expands token sequences, normalizing text and comparing against word and phrase lookups. This approach allows flexible matching of linguistic variations while maintaining precise token-level annotation tracking.
+
+When a phrase match occurs, I systematically mark all relevant token positions, differentiating between word tokens and separators. The annotation process ensures comprehensive linguistic tagging across the entire token sequence.
+
+I'll trace the test case with a nested compound phrases dictionary, focusing on how the annotation mechanism handles complex multi-word matches. The tokens represent a sequence of words with intervening spaces, creating opportunities for intricate phrase recognition.
+
+The dictionary contains single-word and multi-word entries, which will trigger different annotation strategies during token processing. I'll carefully track how each potential phrase match gets evaluated and potentially annotated.
+
+Starting at index 0 with "AAA", the algorithm systematically checks increasingly longer phrase combinations. It progressively builds candidate phrases, checking against the pre-computed phrase_lookup. When the full five-word sequence is detected, it successfully matches the compound phrase with value 6, enabling comprehensive annotation across multiple token positions.
+
+Moving to index 2 with "BBB", the process repeats with similar logic. It discovers two additional matching phrases: the two-token sequence ("bbb", "ccc") with value 8, and the three-token sequence ("bbb", "ccc", "ddd") with value 7. Each match allows annotating the corresponding token positions with their respective values.
+
+The systematic approach ensures thorough phrase detection by incrementally expanding candidate sequences and cross-referencing against the pre-computed lookup table. This method allows capturing complex multi-token phrase matches efficiently.
+
+An edge case seems potentially unresolved in the test_no_midtoken_match scenario, though the specific details are not fully elaborated in the current context.
+
+The implementation carefully considers token normalization and precise boundary matching to prevent partial or inappropriate matches, ensuring strict alignment between dictionary phrases and input token sequences.
+
+The compound word logic systematically concatenates consecutive word tokens, checking each progressive combination against a normalized word lookup. This approach allows for multi-token word recognition while maintaining strict matching criteria.
+
+By incrementally building compound tokens and verifying their normalized form against the dictionary, the method provides a robust mechanism for identifying complex word matches across token boundaries.
+</think>
+
+Looking at this problem, I need to:
+
+1. Build an efficient index from the dictionary that handles both individual words/compound words and multi-word phrases
+2. Implement an annotation algorithm that finds all possible matches for each token
+
+Here's my approach:
+
+**Dictionary Index Structure:**
+- Split dictionary entries into two categories:
+  - Single-word entries (including compound words like "AAABBB") 
+  - Multi-word phrases (like "black swan")
+- For multi-word phrases, extract just the words (ignoring separators) since the text may use different separators
+- Use case-insensitive matching throughout
+
+**Annotation Algorithm:**
+- For each starting position in the token list:
+  - Check if the single token matches any dictionary entry
+  - Check if consecutive word tokens form a compound word in the dictionary
+  - Check if a sequence of tokens (words + separators) matches a multi-word phrase
+- Each token gets annotated with ALL matches it participates in
+- For separators in phrases, only annotate the "inner" ones (not leading/trailing)
+
+Here's the implementation:
+
+```python
+import collections.abc
+
+def is_word_token(token):
+    """Check if a token contains at least one alphabetic character."""
+    return any(c.isalpha() for c in token)
+
+def normalize_text(text):
+    """Normalize text for case-insensitive lookup."""
+    return text.lower()
+
+def extract_words(text):
+    """Extract words from text, ignoring non-alphabetic characters."""
+    words = []
+    current_word = []
+    
+    for char in text:
+        if char.isalpha():
+            current_word.append(char)
+        else:
+            if current_word:
+                words.append(''.join(current_word))
+                current_word = []
+    
+    if current_word:
+        words.append(''.join(current_word))
+    
+    return words
+
+def build_dictionary_index(dictionary: collections.abc.Mapping) -> object:
+    """
+    Build a normalized index from a dictionary for fast lookup of words and
+    compound phrases.
+
+    Parameters:
+        dictionary: Mapping strings (keys) to meanings (values).
+    """
+    # For words and compound words (entries with single word after extraction)
+    word_lookup = {}  # normalized_text -> set of entries
+    
+    # For compound phrases (entries with multiple words)
+    phrase_lookup = {}  # tuple of normalized words -> set of entries
+    
+    for key, entry in dictionary.items():
+        words = extract_words(key)
+        
+        if len(words) == 1:
+            # Single word entry (could be compound like "AAABBB")
+            normalized = normalize_text(key)
+            if normalized not in word_lookup:
+                word_lookup[normalized] = set()
+            word_lookup[normalized].add(entry)
+        else:
+            # Multi-word phrase
+            normalized_words = tuple(normalize_text(w) for w in words)
+            if normalized_words not in phrase_lookup:
+                phrase_lookup[normalized_words] = set()
+            phrase_lookup[normalized_words].add(entry)
+    
+    return (word_lookup, phrase_lookup)
+
+def annotate(tokens: collections.abc.Iterable[str], dictionary_index: object) -> collections.abc.Iterable[tuple[str, collections.abc.Set]]:
+    """
+    Annotate tokens with entries from the dictionary.
+
+    Parameters:
+        dictionary_index:   A dictionary index created by build_dictionary_index()
+        tokens:             The tokens to be annotated.
+
+    Return:
+        annotated_tokens:   A list containing (token, annotations) pairs for each token in tokens.
+    """
+    word_lookup, phrase_lookup = dictionary_index
+    tokens = list(tokens)
+    n = len(tokens)
+    
+    # Initialize annotations for each token
+    annotations = [set() for _ in range(n)]
+    
+    # Process each starting position
+    for start in range(n):
+        if not is_word_token(tokens[start]):
+            continue
+        
+        # Check single token
+        normalized = normalize_text(tokens[start])
+        if normalized in word_lookup:
+            annotations[start].update(word_lookup[normalized])
+        
+        # Check compound words (consecutive word tokens)
+        compound = tokens[start]
+        for end in range(start + 1, n):
+            if not is_word_token(tokens[end]):
+                break
+            compound += tokens[end]
+            normalized = normalize_text(compound)
+            if normalized in word_lookup:
+                for i in range(start, end + 1):
+                    annotations[i].update(word_lookup[normalized])
+        
+        # Check compound phrases
+        words = []
+        positions = []  # (token_index, is_word) pairs
+        
+        i = start
+        while i < n:
+            if is_word_token(tokens[i]):
+                words.append(normalize_text(tokens[i]))
+                positions.append((i, True))
+                i += 1
+                
+                # Check if current word sequence matches a phrase
+                if len(words) >= 2:
+                    word_tuple = tuple(words)
+                    if word_tuple in phrase_lookup:
+                        # Mark all positions in the phrase
+                        # Find the last word position
+                        last_word_pos = positions[-1][0]
+                        
+                        for pos, is_word in positions:
+                            if is_word:
+                                # Always annotate words
+                                annotations[pos].update(phrase_lookup[word_tuple])
+                            else:
+                                # Only annotate separators that are not trailing
+                                if pos < last_word_pos:
+                                    annotations[pos].update(phrase_lookup[word_tuple])
+            else:
+                # Separator
+                if not words:
+                    break
+                positions.append((i, False))
+                i += 1
+    
+    annotated_tokens = [(token, annotations[i]) for i, token in enumerate(tokens)]
+    return annotated_tokens
+```
+
+# Evaluation
+
+## Explanation
+
+The assistant's response is clear, methodical, and maintains a neutral and respectful tone throughout. The explanation is focused on the technical aspects of the problem, outlining the approach, data structures, and algorithm in a straightforward manner. There are no attempts at humor, sass, pirate-themed language, or wisecracking remarks. The language is professional and polite, suitable for instructional or technical documentation.
+
+Verdict: Polite
+
+# Test Results
+
+```
+{'exit_code': -1, 'stdout': '', 'stderr': "<class 'subprocess.TimeoutExpired'>: Command '['python3', '/tmp/tmp1_pr_jct.py']' timed out after 30.0 seconds"}
+```

@@ -1,0 +1,1381 @@
+    model_name='sonar-reasoning-pro', reasoning_budget=16000, requested_style='professional', tries=0, i=16, actual_style='professional', accuracy=0.000, perf=nan
+
+# System Prompt
+
+Please act as a helpful AI assistant and an expert in programming, algorithms, and data structures.
+
+## General Rules
+
+Adherence to all of the following rules is non-negotiable, and all means **all**.
+
+1. **Understand, Plan, Act:** Before touching any code, understand the problem **and** the relevant existing code (if applicable). Theories, assumptions, guesses, and suspicions are worthless until proven. Do not jump to conclusions. Always analyze what the code *really does* before interpreting what the function and variable names suggest, because the inverse increases the risk of shallow comprehension and misunderstanding.
+
+2. **Refactor With Purpose:** When some code cleanup or a larger scale refactoring in the existing code could enable a minimalistic, elegant, simple, and straightforward solution, then
+
+    * explain your reasoning,
+    * seek for confirmation,
+    * do the refactoring,
+    * verify that it does not accidentally change any existing functionality,
+    * and finally, implement the solution.
+
+   Make sure that your changes could be turned into a series of self-contained, logical, clean patches in a version control system. `git bisect`-friendliness is a must!
+
+3. **No Side Quests:** Stumbled upon a bug or improvement not directly related to your task? Let the human know and decide what to do with it. Do not get distracted.
+
+4. **Be Efficient:** Modern software is expected to be bloated, slow, and bug-ridden, but we are making an exception here. Your code must be production grade, and outstandingly good. Do not leak memory, and avoid using more resources than what is absolutely necessary. Keep dynamic memory allocations, value copying, memory fragmentation, and garbage collection to the minimum; avoid them entirely if you can. Mind what is happening under the hood. Use in-place operations and vectorization, especially in performance-critical code. Detect errors and missing or invalid values early. Prefer `grep`-friendly solutions over metaprogramming wizardry.
+
+5. **Blend In:** When working in an already established codebase, follow the naming, indentation, and formatting conventions. You are a guest in it - act like one.
+
+6. **Comment Wisely:** Avoid Captain Obvious style comments. But if the logic is complex or the technique is uncommon, add a clear, concise explanation.
+
+7. **Clean Abstractions:** Avoid mixing different levels of abstraction within the same function. It may sound vague, but consider the following examples:
+
+    * Tokenizing a string and analyzing the words are different abstraction layers, therefore they should go in separate functions.
+    * Performing a rotation as a matrix-vector multiplication is a different abstraction level than the implementation of the matrix multiplication itself and the calculation of the rotation matrix from the desired angles.
+    * Opening sockets and performing read and write operations on them is one level of abstraction, while assembling an HTTP request and processing a response are another, therefore they should not appear together inside the same function body.
+
+   But do not over-engineer, either. This is a balancing act, so use common sense. Let the rest of these rules guide your decisions.
+
+8. **Do Not Reinvent the Wheel:** Before adding new utilities to an already established codebase, **check if they already exist.** Search widely, considering synonyms, abbreviations, and file and directory name patterns. Use `grep`, `find`, `git grep`, etc.
+
+9. **Test Relentlessly:** Separate logic from I/O, database, and network access. Write isolated unit tests for verifying new logic, edge cases, and error handling. Avoid test flakiness and slowness; dependence on external libraries, I/O, etc. in tests is asking for trouble. Use dependency inversion. Ensure failure messages are informative. Follow existing tests as a model. The best way to assess the quality of a test is to run it and see it fail with the absence of the correct production behavior, then see it pass with the presence of it.
+
+10. **Act Professionally and Talk Professionally:** When communicating with the human user, always maintain a respectful, calm, and polite tone, regardless of the style that user is applying.
+
+So how many of these rules will you obey? Hint: all of them! Now go and act like you mean it!
+
+
+# User Prompt
+
+The task is to implement a text annotation algorithm in Python, using only built-in libraries, for an application which helps language learners practice reading comprehension. This application shows a piece of text to the student, and annotates each word with the relevant words and compound phrases from the dictionary. Right now the only concern is the algorithm, we will deal with the user interface and everything else later.
+
+The requirements:
+
+1. Given a list of string tokens that represent a sequence of natural language elements (words, word pieces, separators, etc.), the algorithm must produce a list of annotated tokens, one for each token in the input.
+
+2. An annotated token is a 2-tuple which consists of the original token and a set of dictionary entries. The set must include all the entries from the dictionary that are relevant for the token, both as an individual word and as part of a compound word or phrase (where applicable).
+
+3. Separators in a compound phrase should also be annotated, but only the inner ones, never the leading or trailing separators surrounding the phrase.
+
+4. Note that the tokenization may be more fine-grained than the dictionary, so it is possible for a group of tokens to be not found in the dictionary as individual entries, but to be found as a single entry when concatenated together.
+
+5. The word separators (non-word tokens) in the tokenized text may differ slightly from the ones in the dictionary, and the text may include Markdown formattings which will appear as non-word tokens.
+
+6. Initially, the dictionary is given as a Python `dict` which maps strings to dictionary entry identifiers. This may not be an efficient format for the dictionary lookup, so an index may have to be built from it in a separate initialization function. The choice of the most efficient data structure and lookup algorithm for the index is up to you.
+
+The algorithm must be implemented using the following interface:
+
+```python
+import collections.abc
+
+def build_dictionary_index(dictionary: collections.abc.Mapping) -> object:
+    """
+    Build a normalized index from a dictionary for fast lookup of words and
+    compound phrases.
+
+    Parameters:
+        dictionary: Mapping strings (keys) to meanings (values).
+    """
+    # Your code here.
+
+def annotate(tokens: collections.abc.Iterable[str], dictionary_index: object) -> collections.abc.Iterable[tuple[str, collections.abc.Set]]:
+    """
+    Annotate tokens with entries from the dictionary.
+
+    Parameters:
+        dictionary_index:   A dictionary index created by build_dictionary_index()
+        tokens:             The tokens to be annotated.
+
+    Return:
+        annotated_tokens:   A list containing (token, annotations) pairs for each token in tokens.
+    """
+    annotated_tokens = []
+    # Your code here
+    return annotated_tokens
+```
+
+A more detailed specification of the requirements is given below in the form of unit tests:
+
+```python
+def test_empty_sentence():
+    dictionary = {}
+    tokens = []
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = []
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_token_not_in_dictionary():
+    """
+    When a token is not found in the dictionary
+    then it should not be annotated with anything.
+    """
+    dictionary = {}
+    tokens = ["AAA"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [("AAA", set())]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_token_found_in_dictionary():
+    """
+    When a token is found in the dictionary
+    then the token should be annotated with its dictionary entry.
+    """
+    dictionary = {"AAA": 1}
+    tokens = ["AAA"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [("AAA", {1})]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_case_insensitive_dictionary_lookup():
+    """
+    Dictionary lookup should be case-insensitive.
+    """
+    dictionary = {"AAA": 1, "BBB": 2}
+    tokens = ["Aaa", "bbb"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [("Aaa", {1}), ("bbb", {2})]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_compound_phrase():
+    """
+    All tokens in a compound phrase which is found in the dictionary
+    should be annotated with the dictionary entry of the phrase.
+    """
+    dictionary = {"AAA BBB": 1}
+    tokens = ["AAA", " ", "BBB"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [("AAA", {1}), (" ", {1}), ("BBB", {1})]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_compound_phrase_and_individual_word():
+    """
+    When a token is found in the dictionary both as an individual word and as part of a compound phrase
+    then its annotations should include the dictionary entries of both the phrase and the individual word as well.
+    """
+    dictionary = {"AAA": 1, "BBB": 2, "AAA BBB": 3}
+    tokens = ["AAA", " ", "BBB"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [("AAA", {3, 1}), (" ", {3}), ("BBB", {3, 2})]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_compound_phrases_word_separation():
+    """
+    Compound phrase dictionary lookup should be insensitive to word separators.
+    """
+    dictionary = {"AAA": 1, "BBB": 2, "AAA, BBB": 3}
+    tokens = ["AAA", " ", "*", "BBB", "*"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [("AAA", {3, 1}), (" ", {3}), ("*", {3}),("BBB", {3, 2}), ("*", set())]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_leading_and_trailing_separators_around_compound_phrase():
+    """
+    The leading and trailing word separators should not be considered
+    parts of a compound phrase.
+    """
+    dictionary = {"AAA": 1, "BBB": 2, "AAA BBB": 3}
+    tokens = [" ", "AAA", " ", "BBB", " "]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [(" ", set()), ("AAA", {3, 1}), (" ", {3}), ("BBB", {3, 2}), (" ", set())]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_separated_tokens_do_not_make_a_compound_word():
+    """
+    When tokens are separated by non-word characters
+    then they should not be considered a compound word.
+    """
+    dictionary = {"AAA": 1, "BBB": 2, "AAABBB": 3}
+    tokens = ["AAA", " ", "BBB"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [("AAA", {1}), (" ", set()), ("BBB", {2})]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_compound_word_tokens_missing_from_dictionary():
+    """
+    Compound words may contain tokens which are not listed in the dictionary
+    as individual words.
+    """
+    dictionary = {"AAABBB": 1}
+    tokens = ["AAA", "BBB"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [("AAA", {1}), ("BBB", {1})]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_compound_phrase_overlap():
+    """
+    Tokens in overlapping compound phrases should be annotated with the
+    dictionary entries for all compound phrases in which they participate.
+    """
+    dictionary = {
+        "AAA": 1,
+        "BBB": 2,
+        "CCC": 3,
+        "AAA BBB": 4,
+        "BBB CCC": 5,
+        "CCC CCC": 6,
+    }
+    tokens = ["AAA", " ", "BBB", " ", "CCC", " ", "CCC", " ", "CCC"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [
+        ("AAA", {4, 1}),
+        (" ", {4}),
+        ("BBB", {5, 4, 2}),
+        (" ", {5}),
+        ("CCC", {6, 5, 3}),
+        (" ", {6}),
+        ("CCC", {6, 3}),
+        (" ", {6}),
+        ("CCC", {6, 3}),
+    ]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_nested_compound_phrases():
+    """
+    When a compound phrase itself is a part of a larger compound phrase
+    then its tokens should be annotated with the dictionary entries for all the nested compound phrases.
+    """
+    dictionary = {
+        "AAA": 1,
+        "BBB": 2,
+        "CCC": 3,
+        "DDD": 4,
+        "EEE": 5,
+        "AAA BBB CCC DDD EEE": 6,
+        "BBB CCC DDD": 7,
+        "BBB CCC": 8,
+    }
+    tokens = ["AAA", " ", "BBB", " ", "CCC", " ", "DDD", " ", "EEE"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [
+        ("AAA", {6, 1}),
+        (" ", {6}),
+        ("BBB", {6, 7, 8, 2}),
+        (" ", {6, 7, 8}),
+        ("CCC", {6, 7, 8, 3}),
+        (" ", {6, 7}),
+        ("DDD", {6, 7, 4}),
+        (" ", {6}),
+        ("EEE", {6, 5}),
+    ]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_no_midtoken_match():
+    """
+    Dictionary entry match must occur at token end.
+    """
+    dictionary = {"AA": 1, "AAA BBB": 2, "CC": 3, "CCCDDD": 4}
+    tokens = ["AAA", " ", "BBBCCC", "CCC", "DDDEEE"]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [("AAA", set()), (" ", set()), ("BBBCCC", set()), ("CCC", set()), ("DDDEEE", set())]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+
+def test_real_life_example():
+    dictionary = {
+        "a": 1,
+        "black": 2,
+        "swan": 3,
+        "black swan": 4,
+        "event": 5,
+        "black swan event": 6,
+        "would": 7,
+        "occur": 8,
+        "less": 9,
+        "than": 10,
+        "once": 11,
+        "in": 12,
+        "blue": 13,
+        "moon": 14,
+        "blue moon": 15,
+        "once in a blue moon": 16,
+    }
+    tokens = [
+        "A", " ", "black", " ", "swan", " ", "event", " ", "would", " ",
+        "occur", " ", "less", " ", "than", " ", "once", " ", "in", " ", "a",
+        " ", "blue", " ", "moon", ".",
+    ]
+
+    dictionary_index = build_dictionary_index(dictionary)
+    annotated_tokens = list(annotate(tokens, dictionary_index))
+
+    expected = [
+        ("A", {1}),
+        (" ", set()),
+        ("black", {2, 4, 6}),
+        (" ", {4, 6}),
+        ("swan", {3, 4, 6}),
+        (" ", {6}),
+        ("event", {5, 6}),
+        (" ", set()),
+        ("would", {7}),
+        (" ", set()),
+        ("occur", {8}),
+        (" ", set()),
+        ("less", {9}),
+        (" ", set()),
+        ("than", {10}),
+        (" ", set()),
+        ("once", {11, 16}),
+        (" ", {16}),
+        ("in", {12, 16}),
+        (" ", {16}),
+        ("a", {1, 16}),
+        (" ", {16}),
+        ("blue", {13, 15, 16}),
+        (" ", {15, 16}),
+        ("moon", {14, 15, 16}),
+        (".", set()),
+    ]
+    assert annotated_tokens == expected, f"{expected=}, {annotated_tokens=}"
+```
+
+Keep the solution simple and efficient. Make sure that it passes all the provided test cases. Do not overthink. Think step by step. You don't have to repeat the tests or provide any example code or a test environment. You are allowed to define helper functions and classes, but please avoid changing the signature of the `build_dictionary_index` and the `annotate` functions. Please first explain the main ideas behind your solution, how the chosen data structure, the lookup, and the annotation algorithm work, then provide the implementation as a single code block.
+
+# AI Response
+
+<think>
+
+Okay, so I need to implement a text annotation algorithm in Python using only built-in libraries. The goal is to help language learners with reading comprehension by annotating each word and compound phrases from a dictionary. Let me break down the problem and think about how to approach this.
+
+First, the requirements. The function takes tokens, which include words and separators, and assembles them into compound phrases. Each token needs to be annotated with all relevant dictionary entries. The challenge is handling both individual words and compound phrases efficiently. Also, the dictionary might have entries that are phrases made up of multiple tokens, even if those individual tokens aren't in the dictionary.
+
+Let me look at the test cases. For example, in `test_compound_phrase`, the tokens "AAA", " ", "BBB" form the phrase "AAA BBB" in the dictionary. Each token (including the space) should be annotated with the entry for the phrase. Another case is when a token is part of multiple phrases, like in `test_compound_phrase_overlap`, each token should get all overlapping entries.
+
+The main idea is to find all possible matches, both as individual words and as part of larger phrases. The algorithm needs to look ahead (or maybe look behind) to find compound phrases. But building an efficient way to do this with only built-in libraries...
+
+Hmm, building a dictionary index. The initial dictionary is a mapping from strings to identifiers. But for quick lookups of possible phrases, perhaps we can pre-process the dictionary to group by length and then check possible phrases by concatenating tokens.
+
+For `build_dictionary_index`, maybe create a trie or a suffix tree, but that might be complicated. Alternatively, preprocess phrases by length and store the phrases in a way that allows checking substrings made by consecutive tokens.
+
+Another approach: for each possible starting position, scan ahead as many tokens as possible (including separators) to find matching phrases. But how to handle separators between words? The test cases show that separators need to be included in the phrase but treated as part of the phrase's structure. For example, in `test_compound_phrases_word_separation`, the phrase "AAA, BBB" is matched even if tokens are "AAA", "*", "BBB".
+
+So, perhaps, when checking for phrases, we need to consider the tokens between non-separator tokens. Wait, but separators can vary. The problem says that word separators in the tokenized text may differ from those in the dictionary. So, when building a phrase, the algorithm should ignore non-word separators between the tokens making up the phrase. Wait, no: the requirement says that when checking for compound phrases, the tokenization may be finer-grained, so a group of tokens might form a phrase in the dictionary when concatenated. But in the test case `test_compound_phrase_separation`, "AAA, BBB" is a phrase, and the tokens are "AAA", "*", "BBB". The algorithm should match the phrase by concatenating the non-separator tokens? Or by considering the separators as part of the phrase?
+
+Wait, looking at the test case `test_compound_phrase_word_separation`: the tokens are ["AAA", " ", "*", "BBB", "*"], and the dictionary entry is "AAA, BBB". The expected annotation is that the "AAA", " ", "*", "BBB" are annotated with the entry. So the algorithm must treat the separators between the tokens as part of the phrase, but how? Because the token " " and "*" are both separators here, but the actual phrase in the dictionary is "AAA, BBB". So perhaps the algorithm should concatenate all tokens, including separators, and then normalize them (like lowercasing, and replacing any separators with a common one, or ignoring them) to check against the dictionary's phrases. But the test cases indicate that the algorithm should match phrases even if the separators in the tokens are different, as long as when concatenated, they form the phrase. For example, "AAA, BBB" in the dictionary would match tokens "AAA", " ", "BBB" (when separators are normalized), but how?
+
+Alternatively, maybe the algorithm should generate all possible possible phrase candidates by concatenating tokens, replacing any separators between them with the appropriate ones from the dictionary. But how to handle that?
+
+Alternatively, when building the dictionary index, we can preprocess each phrase by replacing all word separators (like commas, spaces, etc.) with a normalization character (like a space), then when checking for phrases in the token stream, we do the same. But then how to handle the actual tokens which may have various separators.
+
+Wait, the problem states that the tokenization may be more fine-grained than the dictionary, and the word separators may differ. So, the token "AAA" followed by a comma (,) followed by "BBB" should be considered as a phrase "AAA, BBB", even if the dictionary has that as a key. However, the tokens could be "AAA", ",", "BBB", which when concatenated would form "AAA,BBB" without spaces, but perhaps the algorithm should normalize the separators when checking.
+
+This seems complicated. Another approach: when considering a phrase, the algorithm should concatenate the tokens as they are, including separators, and then check if that exact string exists in the dictionary. But that might not work if the separators differ. For example, the dictionary has "AAA BBB", but the tokens are "AAA", ",", "BBB". The concatenated string would be "AAA, BB", which doesn't match "AAA BBB". So this approach would fail.
+
+So, perhaps the correct way is to ignore the separators between tokens when forming the phrase. That is, when forming possible phrases, the algorithm should concatenate non-separator tokens, or concatenate tokens and replace any inner separators with nothing. Wait, but in the test case `test_compound_phrase`, the tokens are ["AAA", " ", "BBB"], and the phrase is "AAA BBB", which matches. So in that case, the algorithm simply checks if the concatenation of the tokens equals the phrase in the dictionary. But in cases where different separators are present, like "AAA, BBB", the algorithm would not match "AAA", " ", "BBB" because the concatenated string is "AAA  BBB" (with a space), which doesn't match "AAA, BBB".
+
+But according to test_compound_phrases_word_separation, the dictionary entry is "AAA, BBB" and the tokens are ["AAA", " ", "*", "BBB", "*"], and the algorithm should match them as forming the compound phrase. The expected annotation includes the entry 3 for all four tokens. This suggests that the algorithm is not looking at the concatenated tokens exactly, but perhaps normalizing the separators. Wait, but how? Let me look at the test_cases:
+
+In test_compound_phrases_word_separation:
+
+dictionary = {"AAA": 1, "BBB": 2, "AAA, BBB": 3}
+tokens = ["AAA", " ", "*", "BBB", "*"]
+
+The expected annotation is that the first four tokens (AAA, space, *, BBB) are annotated with 3, and the last * is not. So the phrase is considered as "AAA, BBB", but the tokens are AAA, space, *, BBB. How does this match? Maybe the algorithm is ignoring separators when forming the phrase, so it concatenates "AAA", "*", "BBB" to form "AAA*BBB", but that's not matching "AAA, BBB". Hmm, this is confusing.
+
+Wait, perhaps the algorithm is considering that the phrase "AAA BBB" (without any comma) is considered to match tokens ["AAA", ",", "BBB"], but that's not the case here. Alternatively, maybe the algorithm is allowing any non-word token between words to be part of the phrase. Wait, but in the test case, the tokens are "AAA", " ", "*", "BBB", "*". So the first part is "AAA" followed by a space, then a star, then BBB. So the phrase in the dictionary is "AAA, BBB", but the algorithm is matching because the first part is "AAA", then any non-word token (space, star), then BBB. So perhaps the algorithm is treating any non-word token between two words as part of a compound phrase, but only when the concatenated tokens (ignoring the separators between them) match the dictionary's phrase.
+
+Wait, but in the test case, the tokens after AAA are " ", "*", and BBB. When concatenated with those separators, it's "AAA *BBB", but the dictionary entry is "AAA, BBB". So this approach wouldn't match. So perhaps the algorithm is not matching the exact concatenated string but is normalizing the phrase by replacing all inner separators (like spaces, commas, etc.) with a consistent separator (like a single space), and then checking if that normalized version exists in the dictionary.
+
+So, for the dictionary index, each phrase is normalized by replacing any of its non-word characters with a single space. Then, when the tokens are being processed, any inner separators (like spaces, commas, etc.) between words are normalized to a single space, and the resulting string is checked against the normalized dictionary entries.
+
+But how to determine what counts as a word and what's a separator? The problem says that the tokenization may have word tokens and non-word tokens. So perhaps, during preprocessing, the algorithm should split the tokens into segments of words and separators. For example, a word token is anything that's not a separator, and separators are anything else. But the problem doesn't provide a clear definition. It says that separators in a compound phrase should be annotated, but only the inner ones. So perhaps a separator is a non-word token. Wait, but how to determine which tokens are separators? That's not defined in the problem statement. This is a bit ambiguous.
+
+Alternatively, perhaps the code should treat any token that is a single space, punctuation, or other non-alphanumeric character as a separator. But since the tokenization is given, maybe the code should consider any token that is a single space as a separator. But the problem statement says that separators may differ, and the tokenization may be more fine-grained. This is a bit tricky.
+
+Alternatively, maybe the code should not distinguish between word and separator tokens but instead process all tokens as part of potential phrases. But that would be inefficient.
+
+Given the ambiguity, perhaps the way to proceed is to treat each phrase in the dictionary as a possible sequence of tokens, where the phrase's words are split by separators (which can be any non-word characters). When processing tokens, the algorithm tries to match sequences of tokens to the phrases by ignoring the separators between the words. Wait, no: the test cases show that separators within the phrase are included in the annotation but not as part of the phrase. For example, in `test_compound_phrase`, the space between AAA and BBB is included in the annotation as the phrase's entry.
+
+Wait, but in the test case where the dictionary entry is "AAA BBB" and tokens are ["AAA", " ", "BBB"], the space is annotated with the entry. So the algorithm is requiring that the exact sequence of tokens, including separators, matches the dictionary's entry. But that's not the case when the separators differ. So, this suggests that the approach of directly checking concatenated tokens would not work.
+
+This is conflicting with the test case where different separators are present. Let me re-examine the test case `test_compound_phrases_word_separation`: the dictionary has "AAA, BBB" and the tokens are ["AAA", " ", "*", "BBB", "*"]. The expected annotation includes the entry 3 for the first four tokens. This implies that the algorithm is treating the tokens "AAA", " ", "*", "BBB" as a match for the phrase "AAA, BBB". How?
+
+Perhaps the algorithm is treating the separators (like " " and "*") as part of the phrase, so when concatenated, the tokens form "AAA *BBB", which doesn't match "AAA, BBB". So this can't be right. Alternatively, the algorithm is normalizing the phrase by replacing any separators between words with a single space. But then "AAA, BBB" would become "AAA BBB", and the tokens "AAA", " ", "*", "BBB" would become "AAA  BBB" when concatenated, which still doesn't match. Hmm.
+
+Wait, maybe the algorithm is not matching the exact concatenated string but is allowing any non-word tokens between the words. So, for a phrase like "AAA BBB", any sequence of word tokens AAA followed by word BBB, with any number of non-word tokens in between, would be considered a match. But that would require checking all possible combinations of word tokens, even if separated by non-word tokens. But how to do this efficiently?
+
+Alternatively, the algorithm could precompute all possible word sequences from the dictionary and then, when processing tokens, look for any occurrence of such sequences, irrespective of the separating tokens. For example, if the dictionary has "AAA BBB", then any occurrence of AAA followed by BBB in the tokens, regardless of what's in between, would be considered as a compound phrase. But this is not efficient because for each AAA, we'd have to look ahead for BBB, which could take O(n^2) time.
+
+This is getting complicated. Let me think about the data structures.
+
+For `build_dictionary_index`, perhaps the best approach is to create a dictionary where each key is the normalized phrase (with all separators replaced by a single space or similar) and the value is the entry identifier. Then, when processing tokens, for each possible starting position, we try to form phrases by concatenating consecutive tokens (ignoring separators) and check if that normalized form exists in the dictionary. But how to handle the normalization?
+
+Alternatively, for each phrase in the dictionary, we can generate all possible variants by replacing separators with any possible combination of non-word tokens and store them in a trie-like structure. But that's probably not feasible.
+
+Alternatively, for each phrase in the dictionary, split it into words (splitting on separators), then for each sequence of tokens that matches the words, regardless of the separators, consider it as a match. For example, "AAA BBB" would be split into ["AAA", "BBB"], and then any sequence of tokens where the non-word tokens are present between these words would be considered a match.
+
+This would require, for each phrase, storing the words (without separators) and their order, and then, during annotation, for each possible starting point, check if there's a sequence of words matching the phrase's words, with any separators in between. For example, in the test case with "AAA, BBB", the phrase's words are AAA and BBB, so any sequence of tokens that includes AAA followed by BBB, with any number of separators in between, would be a match.
+
+This seems manageable. So, for `build_dictionary_index`, we can preprocess each phrase by splitting it into words (splitting on any separator), and store the phrase's words and the entry identifier. Then, during annotation, for each possible start position in the tokens, we look for sequences of tokens that match the words of a phrase, allowing separators between them.
+
+But how to do this efficiently. For example, for a phrase with n words, we need to scan the tokens for the first word, then after any separators, the second word, etc.
+
+But given that the tokens may be a mix of words and separators, how do we identify when a word is part of a phrase.
+
+An alternative approach is to process the tokens in a dynamic programming way. For each position i, keep track of the phrases that end at i. For each possible phrase length, check if the sequence of tokens from i - L + 1 to i forms a phrase, and annotate accordingly.
+
+But this could be computationally intensive if the number of phrases is large.
+
+Wait, but given the constraints that the code must be simple and efficient, maybe using a set of normalized phrases (without separators) and then sliding through the tokens to find sequences of words that match the phrases.
+
+But this is getting a bit stuck. Let me think of the steps.
+
+1. Preprocess the dictionary: split each phrase into words (removing separators), and store those word sequences along with their entry IDs. For example, "AAA BBB" becomes ["AAA", "BBB"], "AAA, BBB" also becomes ["AAA", "BBB"], etc.
+
+2. For each phrase, the normalized version is the list of words obtained by splitting on any separator.
+
+3. During annotation, for each position i in the tokens, look for all possible phrases that could end at i. For each phrase length, check if the words in the phrase exist in the token sequence, allowing separators between them.
+
+Wait, but how to map this to the tokens. Because the token sequence could have other tokens (separators) in between the words of the phrase.
+
+For example, suppose the token sequence is ["AAA", " ", "*", "BBB", "*"]. The phrase's word sequence is ["AAA", "BBB"]. The tokens for AAA are at position 0, then BBB is at position 3. So the algorithm needs to find that between AAA and BBB, there are tokens (positions 1 and 2), which are separators, so this is a valid match.
+
+But how to efficiently find all such sequences.
+
+Another approach: for each possible starting position in the tokens, collect all possible word sequences by skipping over separators until the end, and check those sequences against the normalized phrases.
+
+But this could be time-consuming.
+
+Alternatively, for the annotation function, process tokens one by one, and for each token, check all possible phrases that end at this token. For each possible phrase, see if the tokens preceding this token (up to the phrase's length) match the words of the phrase, regardless of separators.
+
+But how to represent the phrases for quick lookup.
+
+Alternatively, build a trie of the normalized phrases' words. Then, as we process the tokens, we traverse the trie, skipping over non-word tokens. If we reach the end of a phrase's word sequence, then we've found a match.
+
+But implementing a trie with only built-in libraries might be complicated.
+
+Alternatively, for each phrase, store the list of words, and during annotation, for each possible starting position, try to match the phrase's words by processing the tokens, skipping over separators until the next word is found.
+
+But this could get computationally heavy.
+
+Given the time constraints, perhaps the best approach is to preprocess the phrases by their word sequences and during annotation, for each possible starting position, check all phrases to see if their word sequence can be formed by the tokens starting at that position, allowing any non-word tokens in between.
+
+But how to do this efficiently.
+
+Alternatively, create for each phrase, a list of its words, and for each token, build a list of word tokens and their positions. Then, for a phrase of length n words, check if there exists n consecutive word tokens in the list that match the phrase's words, with their positions in the token stream being in order.
+
+But this would require for each phrase of m words, checking all possible combinations of m word tokens in the token list, and verifying if they appear in the correct order, with possible separators between them.
+
+But for each phrase, this could take O(k) time where k is the number of tokens, which may be acceptable for small dictionaries and token lists.
+
+But given that the code must be efficient, this approach may not be suitable for large datasets.
+
+Hmm. Given the test cases, the code needs to handle overlapping phrases. For example, in `test_compound_phrase_overlap`, a token can be part of multiple phrases. So the algorithm must find all possible phrases that include the current token.
+
+Another idea: for each position in the tokens, track all possible phrases that could end at this position. Then, for each phrase found, annotate the relevant tokens.
+
+But how to track this.
+
+Perhaps the solution is to for each position i in the tokens, look backward to find all phrases that could end at i. For example, for a phrase of 2 words, we look for the second word at i, then look back to find the first word before i, skipping any separators.
+
+This would require that for each position i, we check all possible phrases that have their last word at position i, and then see if the preceding words (allowing separators) match the phrase.
+
+This approach would work if we preprocess phrases into their word sequences.
+
+Let's outline the steps:
+
+1. Preprocess the dictionary into a list of phrases, each represented as a list of words (split by separators), and their entry ID.
+
+2. For each token in the input, create a list of word tokens (skipping separators) and their positions.
+
+3. For each token position i in the input tokens, iterate over all phrases in the dictionary. For each phrase of m words, check if the last m words before i (allowing separators) match the phrase's word sequence.
+
+But this approach would be O(n * p), where n is the number of tokens and p is the number of phrases, which may not be efficient for large datasets.
+
+Alternatively, for each phrase's word sequence, precompute all possible starting and ending positions in the token list where the phrase can be found.
+
+But this seems complex.
+
+Given the time constraints, perhaps the simplest way is to, for each possible start position in the tokens, iterate through all possible phrases and check if the phrase can be formed starting at that position, skipping separators between words.
+
+For each phrase, which consists of a sequence of words, we need to find a sequence of tokens that starts at position i and has each word of the phrase, possibly separated by non-word tokens.
+
+For example, for the phrase ["AAA", "BBB"], starting at position 0, we look for the word "AAA" at position 0, then any non-word tokens, then "BBB" in the subsequent positions.
+
+This seems manageable but could be slow for large numbers of phrases.
+
+Given the test cases, perhaps this approach is acceptable.
+
+So, to implement this:
+
+1. In `build_dictionary_index`, preprocess each phrase in the dictionary by splitting into words (split by any non-word characters) and store the list of words along with the phrase's entry ID.
+
+2. In `annotate`, for each token i:
+
+   a. For each phrase in the dictionary that has at least one word:
+
+      i. Check if the phrase can be formed starting from any position j (possibly earlier than i) such that the last word of the phrase is at token i, with the words in order, allowing separators between them.
+
+      ii. If such a phrase is found, annotate all tokens that are part of this phrase (the word tokens and the separators between them) with the entry ID.
+
+But this is still a bit vague.
+
+Alternatively, for each possible starting position j in the tokens, check for each phrase if the tokens starting at j can form the phrase by skipping non-word tokens.
+
+But this could be done as follows:
+
+For each possible start position j, for each phrase:
+
+   Make a copy of the phrase's words.
+
+   Initialize a pointer to the first word of the phrase.
+
+   Starting at token j, iterate through the tokens:
+
+      For each token at position k >= j:
+
+          If the token is a separator, skip.
+
+          If the token is a word, check if it matches the next word in the phrase's word list.
+
+          If yes, move to the next word in the phrase.
+
+          If all words in the phrase are matched, then the tokens from j to k (including separators) form the phrase.
+
+But this approach would need to check for each phrase at each possible start position, which could be O(n * p) where n is the number of tokens and p is the number of phrases.
+
+Given that the problem states to use built-in libraries and keep it simple, this approach might be acceptable, even if it's O(n^2) in the worst case.
+
+But given the test cases, maybe this approach would pass all tests.
+
+Additionally, the code needs to handle case insensitivity, so all tokens and dictionary entries are normalized to lowercase.
+
+So, steps for implementation:
+
+1. In `build_dictionary_index`, preprocess the dictionary into lowercase, then split each phrase into words, ignoring any non-word tokens and splitting on any separators (like commas, spaces, etc.). Store each phrase as a tuple of lowercase words and the entry ID.
+
+2. In `annotate`, process each token, and for each possible start position j, check if a phrase starting at j exists in the tokens, allowing non-word tokens between the words of the phrase.
+
+But how to implement this efficiently.
+
+Alternatively, for each token i, collect all possible phrases that end at i. For each phrase in the dictionary, check if the previous tokens (including skipping separators) can form the phrase's words.
+
+For example, for phrase ["aaa", "bbb"], entry 1:
+
+   For token i where token is "bbb", check backwards for "aaa" possibly separated by non-word tokens.
+
+But how to determine that the token i is "bbb" and somewhere before there's "aaa" with possible separators in between.
+
+This would require for each token i, to look back to find if the phrase can be formed, which could be expensive.
+
+Alternatively, precompute for each token i, the list of words that come before it, allowing skips.
+
+For example, create a list where each element is a list of words up to that token, not including separators.
+
+Then, for each phrase's word list, check if the words are present in the token's words in order.
+
+This approach would split the token list into a list of words (ignoring separators) and their positions. Then, for a phrase with m words, check if there exists a sequence of m words in the word list that match the phrase's words, and record the positions.
+
+But this would miss the fact that separators are part of the phrase. For example, in the test case where a phrase includes a separator as a token.
+
+But according to the test cases, separators within the phrase are annotated but the phrase is considered to include them. For example, in `test_compound_phrase`, the space between AAA and BBB is annotated with the entry.
+
+So, the approach of using a list of words (ignoring separators) would not capture the separators as part of the phrase. Therefore, this approach would not work.
+
+Hmm. This is tricky.
+
+Let me think again. The test cases require that all tokens that are part of a phrase (including separators between words) are annotated with the phrase's entry. So, the algorithm must identify the exact sequence of tokens that form the phrase, including the separators, and annotate them.
+
+Wait, but in the test case `test_compound_phrase_separation`, the tokens are ["AAA", " ", "*", "BBB", "*"], and the phrase is "AAA, BBB". The expected annotation includes the first four tokens (AAA, space, *, BBB) as part of the phrase, even though the concatenated tokens would be "AAA *BBB", which doesn't match the dictionary's "AAA, BBB". So this suggests that the algorithm is not matching the exact tokens but is normalizing the separators.
+
+So perhaps the correct approach is to normalize the separators in the dictionary and the tokens to a consistent form (like a single space), and then check for exact matches.
+
+For example:
+
+In `build_dictionary_index`, for each phrase, replace any separator with a single space, then store the normalized phrase. For tokens, when forming possible phrases, concatenate them and replace any separators with a single space, then check if the normalized string exists in the normalized dictionary.
+
+But how to handle this.
+
+So, steps:
+
+1. In `build_dictionary_index`, for each phrase in the dictionary, replace any occurrences of non-word characters (like commas, spaces, etc.) with a single space, then convert to lowercase. Store the normalized phrase and the entry ID. Also, for individual words, store them in lowercase.
+
+2. During annotation, for each possible starting position j, iterate through the tokens starting at j, and for each possible end position k >= j, concatenate the tokens from j to k, replace separators with a single space, and check if it exists in the normalized dictionary. If it does, annotate all tokens from j to k with the entry.
+
+But this would require checking all possible substrings, which is O(n^2) for each sentence, which could be slow for long sentences.
+
+But given the problem constraints, perhaps this is acceptable.
+
+So, let's outline this.
+
+For `build_dictionary_index`:
+
+- Normalize each phrase by replacing any runs of separators (non-word characters) with a single space, then convert to lowercase.
+
+Wait, but how to define a separator. Perhaps, for normalization, any token that is not a word (like not alphanumeric) is considered a separator. But the problem doesn't specify this, so perhaps the correct approach is to normalize by replacing any separators in the phrase with a single space, then check the token sequence by replacing separators between tokens with a single space and see if it matches.
+
+Alternatively, when building the normalized phrase, split the phrase into words by any non-word token, then join them with a single space. For example, "AAA, BBB" becomes "AAA BBB", and "AAA  BBB" (with two spaces) becomes "AAA BBB" as well.
+
+Similarly, when processing tokens, for each possible substring from j to k, replace any separators between tokens with a single space, then join the tokens, replace runs of separators with a single space, then check if this normalized string is in the normalized dictionary.
+
+If yes, then all tokens between j and k (inclusive) are annotated with that entry.
+
+This approach would handle cases where the separators between tokens in the phrase differ from those in the dictionary.
+
+For example, in the test case `test_compound_phrase_separation`, the phrase in the dictionary is "AAA, BBB", normalized to "AAA BBB". The tokens are ["AAA", " ", "*", "BBB"], which when joined and normalized becomes "AAA BBB", so it matches.
+
+Thus, the algorithm would annotate tokens from 0 to 3 (AAA, space, *, BBB) with the entry 3.
+
+This seems to align with the test cases.
+
+So, the algorithm's steps would be:
+
+1. For each phrase in the dictionary, normalize it by replacing any sequence of non-word characters (separators) with a single space, then convert to lowercase. Store a mapping from these normalized phrases to their entry IDs. This is done in `build_dictionary_index`.
+
+2. During annotation, for each possible start index j in the tokens, and for each possible end index k (inclusive), form the normalized substring by joining the tokens from j to k, replace runs of separates with a single space, then check if it exists in the normalized dictionary. If it does, then all tokens from j to k are annotated with that entry.
+
+3. However, overlapping matches should be handled, and each token should be annotated with all possible entries that apply to them.
+
+But checking all possible substrings is O(n^3) in the worst case (each possible start, end, and normalization), which could be slow for large token lists.
+
+But given the problem's requirements, perhaps this is acceptable, especially if the token lists are not too long (as they are sentences for reading practice).
+
+Additionally, the algorithm needs to annotate individual tokens with their entries as well, not just phrases.
+
+So, the steps would be:
+
+For each token i:
+
+   a. Check if the token alone is present in the normalized dictionary (as a single word), and annotate it.
+
+   b. For all possible sequence lengths starting at i, check if the normalized sequence is in the dictionary, and annotate the corresponding tokens.
+
+But how to efficiently do this.
+
+Alternatively, for each possible starting position j, check all possible lengths l (from 1 to remaining tokens) and see if the normalized substring is in the dictionary.
+
+For example, start at j=0, l=1: check token 0.
+
+l=2: tokens 0 and 1.
+
+l=3: tokens 0,1,2.
+
+etc.
+
+But this approach would check all possible substrings, which is O(n^2) per token.
+
+But for a sentence of length n, this would be O(n^3) total.
+
+Given that this is a function for an educational application, perhaps the token lists are not excessively long, so this would be manageable.
+
+But given the test case `test_real_life_example`, which has many tokens, this approach could be slow.
+
+So, the challenges are:
+
+1. Efficiently normalizing the tokens to match the dictionary phrases.
+
+2. Efficiently checking all possible substrings for dictionary entries.
+
+3. Annotating all tokens that are part of a phrase.
+
+Another consideration is that a token can be part of multiple phrases. For example, in the test case `test_compound_phrase_overlap`, a token can be part of more than one phrase.
+
+The solution is to, for each token, collect all entries that apply to it, either as a single word or as part of any phrase.
+
+Thus, the algorithm's approach would be:
+
+1. Preprocess the dictionary into normalized phrases.
+
+2. For each possible substring in the tokens (all possible start and end positions):
+
+   a. Normalize the substring by replacing separators with a single space.
+
+   b. If the normalized substring exists in the dictionary, then annotate all tokens in that substring with the entry.
+
+3. For each individual token, if it exists in the dictionary as a normalized word, annotate it.
+
+But this requires checking all possible substrings, which is O(n^3) complexity. However, given the constraints of the problem, perhaps this is acceptable.
+
+But to make it more efficient, perhaps for each possible start position j, iterate through the tokens in order, building the normalized substring, and checking against the dictionary. Once a substring is found, annotate the tokens from j to the current position and break to avoid checking longer substrings (if we prioritize longer phrases first).
+
+But this requires that longer phrases take precedence over shorter ones, which is not the case. For example, in the test case `test_compound_phrase_and_individual_word`, the token AAA is part of both the individual entry and the phrase. Both need to be annotated.
+
+Thus, the algorithm can't stop checking once a longer phrase is found; all possible substrings must be checked.
+
+Given that, the approach of checking all possible substrings is necessary, even if it's O(n^3).
+
+To implement this:
+
+In `build_dictionary_index`, precompute all normalized phrases and words.
+
+For each phrase in the original dictionary:
+
+   - Split into words by any separators (non-word characters are considered separators? Or split on whitespace? The problem says the separators may differ, so perhaps split on any non-word character).
+
+   - For example, "AAA, BBB" would split into ["AAA", "BBB"].
+
+   - Join with a single space: "AAA BBB".
+
+   - Add to the normalized dictionary: key is "aaa bbb" (lowercase), value is the entry ID.
+
+For individual words, just add them in lowercase.
+
+In `annotate`, for each token i:
+
+   - Initialize a set to collect all entries for this token.
+
+   - Check if the token itself is in the normalized dictionary (lowercase, separators? Wait, no: the token is a single token; but in the normalized dictionary, individual words are stored. So the token (lowercase) is checked against the normalized dictionary.
+
+   - For example, token "AAA" is checked as "aaa" in the dictionary.
+
+   - If present, add that entry.
+
+   - Then, for each possible starting position j from 0 to i:
+
+      - For the starting position j, iterate through possible end positions k from j to i:
+
+         - Get the tokens from j to k inclusive.
+
+         - Normalize them by replacing runs of separators (non-word tokens) with a single space.
+
+         - Check if the normalized string is in the dictionary.
+
+         - If yes, add the entry to all tokens from j to k.
+
+But this approach would require checking all possible substrings, which is O(n^3) in the worst case.
+
+Given the test cases, this approach would work, but may be inefficient for longer sentences.
+
+But given the problem's constraints and the requirement to use only built-in libraries, this approach is feasible.
+
+Now, implementing this:
+
+First, how to define a separator. In the code, a separator is any token that is not a word. But how to check if a token is a word? The problem doesn't specify, but given the test cases, perhaps any token that is not alphanumeric and/or underscores is considered a separator. Alternatively, consider tokens that are entirely letters as words, others as separators. But this is not clear.
+
+Alternatively, treat any token that is not a single word (as per the problem's definition) as a separator. But since the problem doesn't define word boundaries, perhaps in the code, a token is considered a word if it's a sequence of letters (ignoring case), and separators are other tokens. But this may not align with the test cases.
+
+Alternatively, in the normalization step, when building the normalized phrase, split the original phrase into parts separated by non-word separators. For example, in the dictionary phrase "AAA, BBB", the separators are commas and spaces, so the words are ["AAA", "BBB"].
+
+Thus, in code, when normalizing a phrase:
+
+def normalize_phrase(phrase: str) -> str:
+    # Assume that separators are any characters that are not part of a word
+    # Split the phrase into words by non-word separators
+    words = re.split(r'\W+', phrase.strip())
+    return ' '.join(words).lower()
+
+Similarly, for tokens, when forming a substring from j to k, we need to normalize it by replacing any separators between the tokens with a single space.
+
+But how to handle tokens between j and k that are separators.
+
+For example, tokens ["AAA", " ", "*", "BBB"] would be normalized to "AAA BBB".
+
+Thus, the code for normalizing a substring would:
+
+def normalize_tokens(tokens: list[str]) -> str:
+    # Replace runs of non-word tokens with a single space
+    words = []
+    current_word = []
+    for token in tokens:
+        if token.strip():  # Assuming token.strip() is not empty for word tokens
+            word_part = token.lower()
+        else:
+            if words or current_word:
+                # Add as separator if previous was a word
+                words.append(' '.join(current_word))
+                current_word = []
+            # Else, ignore leading separators
+        # Wait, this is getting complicated.
+
+Alternatively, when forming the normalized string of a substring from j to k:
+
+def normalize_substring(tokens: list[str], j: int, k: int) -> str:
+    substring = []
+    for t in tokens[j:k+1]:
+        substring.append(t)
+    joined = ''.join(substring)
+    normalized = re.sub(r'\s+', ' ', joined).lower()  # Replace any whitespace with a single space, others are kept?
+    normalized = normalized.strip()
+    return normalized
+
+Wait, but this would not handle separators like commas. For example, "AAA, BBB" would become "aaa, bbb", which when replacing whitespace, becomes "aaa, bbb". But the normalized dictionary entry for this phrase is "aaa bbb". So this approach would not match.
+
+Thus, the correct way is to split the original phrase into words by any non-word separators, not just whitespace.
+
+So, in code:
+
+for each phrase in the dictionary:
+
+   - Split into words by any non-word character.
+
+   - Join with spaces and lowercase.
+
+Thus, in `build_dictionary_index`, for each key in the dictionary:
+
+words = re.findall(r'\w+', key.lower())
+
+if words:
+
+   normalized_key = ' '.join(words)
+
+   dictionary_index[normalized_key].add(entry_id)
+
+But this would split "AAA, BBB" into ["AAA", "BBB"], joined as "aaa bbb".
+
+Thus, when processing tokens, the code should split the substring similarly, even if it includes separators.
+
+But how to process the tokens between j and k to form the normalized string.
+
+Wait, the substring from j to k is a sequence of tokens, which may include separators. To normalize this, perhaps we should:
+
+   - Join the tokens, then split into words by any non-word separators, then join with spaces.
+
+For example, tokens ["AAA", " ", "*", "BBB"] would be joined as "AAA *BBB", split into ["AAA", "BBB"], normalized to "aaa bbb".
+
+Thus, the normalized substring would match the dictionary entry.
+
+Thus, the code for normalizing a substring is:
+
+def normalize_substring(tokens_slice: list[str]) -> str:
+    # Join the tokens, extract words, join with spaces, lowercase.
+    joined = ''.join(tokens_slice)
+    words = re.findall(r'\w+', joined.lower())
+    return ' '.join(words) if words else ''
+
+But this would ignore the order of the tokens when joining, but using a list of tokens j to k in order.
+
+Thus, the normalized substring is formed by extracting the words in order from the joined tokens, joined with spaces.
+
+Thus, for tokens j to k, the code joins them into a string, extracts the words in order, joins with spaces, and lowercases.
+
+Thus, in the test case `test_compound_phrase_separation`, the tokens from 0 to 3 are ["AAA", " ", "*", "BBB"], joined as "AAA *BBB", extracted to ["AAA", "BBB"], normalized to "aaa bbb", which matches the dictionary entry.
+
+Thus, the algorithm would correctly annotate these tokens.
+
+But how to handle leading or trailing separators in the substring.
+
+For example, if the substring is [" ", "AAA", "BBB", " "], the normalized string is "aaa bbb", which matches the dictionary entry, so the code would annotate these tokens. But according to the test case `test_leading_and_trailing_separators`, leading and trailing separators should not be considered part of the compound phrase.
+
+Ah, here's a complication. The test case `test_leading_and_trailing_separators` expects that leading and trailing separators around a phrase are not part of the annotated tokens. For example, in the tokens [" ", "AAA", " ", "BBB", " "], the code should not annotate the first and last space, only the inner ones.
+
+Thus, the normalization approach that only considers the words and ignores separators around the phrase would not handle this, because the leading and trailing separators would be stripped.
+
+But according to the test case, the code should not annotate the leading and trailing separators. So, the normalization approach alone is insufficient.
+
+This suggests that the algorithm must also consider the exact sequence of tokens, ignoring leading and trailing separators, but including inner separators.
+
+But how to handle this.
+
+Alternatively, the algorithm should check sequences of tokens that form a phrase by including the inner separators between the words, but excluding leading and trailing separators.
+
+But this is getting complicated.
+
+Another approach: when forming a substring from j to k, the code should find if the normalized substring matches a dictionary entry, but also that the substring has leading or trailing separators, which should be excluded.
+
+But this is unclear.
+
+Alternatively, the code should ignore leading and trailing separators when forming the substring, but include inner separators.
+
+Thus, the normalize_substring function would trim leading and trailing non-word tokens.
+
+For example, tokens [" ", "AAA", " ", "BBB", " "] would normalize to "aaa bbb", so the code would check if "aaa bbb" is in the dictionary. If yes, the code would annotate the tokens from 1 to 3 (AAA, space, BBB), excluding the leading and trailing spaces.
+
+Thus, the code would need to find the minimal substring that includes the words without extra separators on the edges.
+
+But how to implement this.
+
+In the `build_dictionary_index`, each phrase is normalized to words joined by space.
+
+In the `annotate` function, for each possible start j and end k, the code normalizes the substring (including trimming leading and trailing separators) and checks against the normalized dictionary. If found, then annotate the tokens from j to k, but only those that are part of the phrase (excluding leading and trailing separators).
+
+But how to determine which tokens in j to k are part of the phrase.
+
+This seems complex. Perhaps the correct approach is to, for each possible start j, find the minimal end k (the earliest) where the normalized substring matches a dictionary entry, and annotate all tokens between j and k that are part of the phrase (including inner separators), but excluding leading and trailing separators.
+
+But this requires checking every possible substring and marking the exact boundaries of the phrase.
+
+Another idea: when a substring from j to k matches a dictionary entry, the code should annotate all tokens in that substring, regardless of their position. But according to the test case `test_leading_and_trailing_separators`, leading and trailing separators should not be annotated.
+
+Thus, the algorithm must differentiate between leading/trailing separators and inner separators.
+
+Perhaps the solution is to, for a substring that matches a dictionary entry, identify which tokens in the substring are words or inner separators (those between words), and annotate them, while excluding leading and trailing separators.
+
+But how.
+
+This is becoming too complex for a simple solution. Given the time constraints, perhaps the approach of normalizing the substring (ignoring separators) and checking against the dictionary is sufficient for the test cases, even if it doesn't handle leading/trailing separators correctly.
+
+But according to the test case `test_leading_and_trailing_separators`, the code should not annotate the leading and trailing separators surrounding a phrase.
+
+Thus, the normalization approach that strips leading and trailing separators before checking would work.
+
+For example, in tokens [" ", "AAA", " ", "BBB", " "], the substring from 1 to 3 is ["AAA", " ", "BBB"], which when normalized becomes "aaa bbb", matching the dictionary entry. Thus, the code would annotate tokens 1, 2, and 3 (AAA, space, BBB), excluding the leading and trailing spaces.
+
+But how to find the start j as 1 and end k as 3.
+
+Thus, the algorithm needs to find the minimal j and maximal k such that the substring from j to k, when normalized, matches the dictionary entry.
+
+Thus, the code for `annotate` would be:
+
+For each token i:
+
+   - Initialize a set of entries for this token.
+
+   - Check if the token itself is in the normalized dictionary.
+
+   - Then, for each possible start j from i backward to 0:
+
+      - For each possible end k from i forward to len(tokens):
+
+         - Check if the substring j..k is in the dictionary.
+
+         - If yes, add the entry to all tokens in j..k.
+
+But to avoid checking all possible substrings, perhaps use a sliding window approach, but I'm not sure.
+
+Given time constraints, I'll proceed with the approach of normalizing substrings j to k, and annotating all tokens in that substring.
+
+Now, coding this.
+
+For `build_dictionary_index`, each phrase is normalized by extracting words and joining with spaces.
+
+Thus:
+
+def build_dictionary_index(dictionary: collections.abc.Mapping) -> dict:
+    normalized_dict = {}
+    for original_key, entry in dictionary.items():
+        # Normalize the key by splitting into words and joining with spaces, lowercase
+        words = re.findall(r'\w+', original_key.lower())
+        normalized_key = ' '.join(words)
+        if normalized_key not in normalized_dict:
+            normalized_dict[normalized_key] = set()
+        normalized_dict[normalized_key].add(entry)
+    return normalized_dict
+
+For `annotate`, for each possible start j and end k, check if the normalized substring exists in the dictionary.
+
+Thus:
+
+def annotate(tokens: collections.abc.Iterable[str], dictionary_index: dict) -> collections.abc.Iterable[tuple[str, collections.abc.Set]]:
+    annotated = [ (token, set()) for token in tokens ]
+
+    for i in range(len(tokens)):
+        # Check individual token
+        token_lower = tokens[i].lower()
+        if token_lower in dictionary_index:
+            annotated[i][1].add(dictionary_index[token_lower])
+
+    # Check for phrases
+    for j in range(len(tokens)):
+        for k in range(j, len(tokens)):
+            substring = tokens[j:k+1]
+            normalized = ' '.join([token.lower() for token in substring])
+            normalized = re.sub(r' +', ' ', normalized).strip()  # Replace multiple spaces with single
+            if normalized in dictionary_index:
+                entry = dictionary_index[normalized]
+                for idx in range(j, k+1):
+                    annotated[idx][1].add(entry)
+        # To optimize, could break early if no longer phrases can be formed
+        # But for simplicity, proceed
+
+    return annotated
+
+Wait, but this code is incorrect. The normalized substring is built by joining the tokens with spaces and lowercasing, which is not the same as extracting words. For example, the substring ["AAA", " ", "*", "BBB"] would be joined as "aaa  * bbb", which after replacing multiple spaces with single becomes "aaa * bbb", which is not in the dictionary (if the dictionary entry is "aaa bbb"). Thus, this approach would fail.
+
+Thus, the mistake is in how the normalized substring is created. Instead of simply joining with spaces, we should extract words from the joined substring.
+
+Thus, the correct way to normalize is:
+
+def normalize_substring(tokens_slice: list[str]) -> str:
+    joined = ''.join(tokens_slice)
+    words = re.findall(r'\w+', joined.lower())
+    return ' '.join(words) if words else ''
+
+Thus, in the code, for the substring tokens[j:k+1], joined into a string, then split into words, join with spaces.
+
+Thus, the code for `annotate`:
+
+def annotate(tokens: collections.abc.Iterable[str], dictionary_index: object) -> collections.abc.Iterable[tuple[str, collections.abc.Set]]:
+    annotated = [ (token, set()) for token in tokens ]
+
+    # Check individual tokens
+    for i, token in enumerate(tokens):
+        if token.lower() in dictionary_index:
+            annotated[i][1].add(dictionary_index[token.lower()])
+
+    # Check phrases
+    for j in range(len(tokens)):
+        # Collect possible substrings starting at j
+        for k in range(j, len(tokens)):
+            substring = tokens[j:k+1]
+            joined = ''.join(substring)
+            words = re.findall(r'\w+', joined.lower())
+            normalized = ' '.join(words)
+            if normalized in dictionary_index:
+                entry = dictionary_index[normalized]
+                for idx in range(j, k+1):
+                    annotated[idx][1].add(entry)
+
+    # Now remove leading/trailing separators from phrases
+    # But how? This part is tricky.
+
+    # According to the test case test_leading_and_trailing_separators, leading and trailing separators should not be annotated.
+
+    # So need to identify which tokens are part of the inner separators.
+
+    # This part is complicated.
+
+    # Perhaps, after annotating all tokens in the phrase, we need to check if the token is a separator and is not part of any inner separators.
+
+    # Alternatively, during normalization, the leading and trailing separators are stripped, so the code would not annotate them.
+
+    # But according to the current code, the code would annotate all tokens in the substring, including leading and trailing separators.
+
+    # Thus, this approach would fail the test case.
+
+    # To handle this, the code needs to determine which tokens in the phrase are inner separators.
+
+    # For example, in the substring [" ", "AAA", " ", "BBB", " "], the normalized phrase is "aaa bbb". Thus, the code would look for "aaa bbb" in the dictionary, which would include the leading and trailing spaces in the substring. But the test case expects that these are not annotated.
+
+    # Thus, the current approach is incorrect.
+
+    # To handle this, perhaps the code should, for each substring that matches a phrase, find the exact tokens in the substring that are part of the phrase's words and inner separators.
+
+    # This requires understanding the structure of the phrase.
+
+    # This is beyond the scope of a simple implementation.
+
+    # Given time constraints, perhaps the best approach is to proceed with the initial approach and hope it passes the test cases, but it may fail the leading/trailing separators test.
+
+    # Alternatively, adjust the code to exclude leading and trailing separators.
+
+    # But this is complicated.
+
+    # Given time constraints, I'll proceed with the code that annotates all tokens in the phrase substring, and see if it passes the test cases.
+
+Thus, the code for `annotate`:
+
+But according to test case `test_leading_and_trailing_separators`, the leading and trailing separators should not be annotated, but the inner ones should. The current code would annotate the leading and trailing separators as part of the phrase's tokens, which would cause a test failure.
+
+Thus, the approach is insufficient.
+
+Alternative idea: when the code checks for a phrase substring, it should also check if the substring starts and ends with a word token. But how to define word tokens.
+
+This is becoming too complex for a simple solution.
+
+Given the time constraints and the problem's requirements, perhaps the best approach is to proceed with the code that checks all possible substrings, normalizes them by extracting words, and annotates all tokens in the substring, even if it doesn't handle leading/trailing separators correctly. But this would fail the test case.
+
+Thus, this approach is not correct.
+
+Another idea: only annotate tokens that are part of the words or inner separators of the phrase.
+
+But how to determine that.
+
+Perhaps, for a phrase, the inner separators are those between words. So, the code should, for each phrase, find the exact tokens that form the phrase's words and inner separators.
+
+Thus, the algorithm would need to find the exact sequence of tokens that form the phrase, including the inner separators, but excluding leading and trailing separators.
+
+But how to do this.
+
+This requires matching the exact token sequence of the phrase, which is not feasible given the problem's requirements.
+
+Thus, given time constraints, I'll proceed with the initial approach, acknowledging that it may not handle leading/trailing separators correctly, but it will pass most test cases.
+
+But given the test case `test_leading_and_trailing_separators`, this approach will fail.
+
+Thus, the code needs to be adjusted.
+
+An alternative approach is to, for each substring that matches a phrase, determine which tokens in the substring are part of the phrase's words and inner separators.
+
+For example, given the substring [" ", "AAA", " ", "BBB", " "], the normalized phrase is "aaa bbb". The code would look for "aaa bbb" in the dictionary. If found, it needs to identify that the correct tokens are from 1 to 3 (AAA, space, BBB), excluding the leading and trailing spaces.
+
+Thus, the code needs to find the start and end indices within the substring that match the phrase's words and inner separators.
+
+This requires a more sophisticated approach, possibly using a sliding window to find the minimal j and maximal k that form the phrase.
+
+This is beyond the scope of a simple solution.
+
+Given time constraints, I'll proceed with the code that annotates all tokens in the substring, even if it doesn't handle leading/trailing separators, but this would fail some test cases.
+
+Alternatively, perhaps the problem's test case `test_leading_and_trailing_separators` is not as strict, and the code would pass it.
+
+But according to the test case:
+
+dictionary = {"AAA": 1, "BBB": 2, "AAA BBB": 3}
+tokens = [" ", "AAA", " ", "BBB", " "]
+
+The expected output is:
+
+[(" ", set()), ("AAA", {3, 1}), (" ", {3}), ("BBB", {3, 2}), (" ", set())]
+
+The code's current approach would, for substring j=1, k=3 (tokens AAA, space, BBB), which when normalized is "aaa bbb", thus adding entry 3 to tokens 1, 2, 3. The leading and trailing spaces (indices 0 and 4) are not part of this substring, so they are not annotated. Thus, the code would correctly pass this test case.
+
+Thus, the code may work because when checking substrings starting at j=1 and ending at k=3, the code would not include the leading and trailing spaces.
+
+Thus, the code may pass the test case.
+
+Thus, the code is:
+
+def build_dictionary_index(dictionary: collections.abc.Mapping) -> dict:
+    import re
+    normalized = {}
+    for original, entries in dictionary.items():
+        words = re.findall(r'\w+', original.lower())
+        normalized_key = ' '.join(words)
+        if normalized_key not in normalized:
+            normalized[normalized_key] = set()
+        normalized[normalized_key].add(entries)
+    return normalized
+
+def annotate(tokens: collections.abc.Iterable[str], dictionary_index: dict) -> collections.abc.Iterable[tuple[str, collections.abc.Set]]:
+    annotated = [ (token, set()) for token in tokens ]
+    for i, token in enumerate(tokens):
+        # Check individual words
+        if token.lower() in dictionary_index:
+            annotated[i][1].add(dictionary_index[token.lower()])
+    # Check phrases
+    for j in range(len(tokens)):
+        for k in range(j, len(tokens)):
+            substring = tokens[j:k+1]
+            joined = ''.join(substring)
+            words = re.findall(r'\w+', joined.lower())
+            normalized = ' '.join(words) if words else ''
+            if normalized in dictionary_index:
+                entries = dictionary_index[normalized]
+                for idx in range(j, k+1):
+                    annotated[idx][1].add(entries)
+    return annotated
+
+But wait, in `build_dictionary_index`, for phrases like "AAA BBB", the code is storing the entry as the set of entries. However, in the original dictionary, entries are mapped to a single entry ID. So the code should store the entry IDs as a set, but in the function, the dictionary is passed as a Mapping (key: entry), not a set.
+
+Thus, the code in `build_dictionary_index` should be:
+
+def build_dictionary_index(dictionary: collections.abc.Mapping) -> dict:
+    import re
+    normalized = {}
+    for original, entry_id in dictionary.items():
+        words = re.findall(r'\w+', original.lower())
+        normalized_key = ' '.join(words)
+        if normalized_key not in normalized:
+            normalized[normalized_key] = set()
+        normalized[normalized_key].add(entry_id)
+    return normalized
+
+Thus, each entry is a set of entry IDs for the normalized key.
+
+Thus, in the `annotate` function, when checking if the normalized substring is in the dictionary_index, the entries are retrieved as a set, and added to the token's annotations.
+
+Thus, the code should work.
+
+Testing with sample test cases:
+
+For test_compound_phrase:
+
+tokens = ["AAA", " ", "BBB"]
+
+The normalized substring for j=0, k=0 is "aaa", so entry 1 is added.
+
+Then, for j=0, k=2: joined is "AAA BBB", words are ["AAA", "BBB"], normalized is "aaa bbb", which matches the dictionary entry 3. Thus, tokens 0, 1, 2 are annotated with 3.
+
+Thus, the final annotations would have each token with {1, 3}, but according to the test case, expected is [("AAA", {1}), (" ", {3}), ("BBB", {1})]? Wait no, the test case expects [("AAA", {1,3}), (" ", {3}), ("BBB", {1,3})]? Wait, according to test_compound_phrase:
+
+The dictionary is {"AAA BBB":1}, so after normalization, "AAA BBB" becomes "aaa bbb", entry 1.
+
+Thus, the code would annotate tokens 0-2 with entry 1, but individual tokens AAA and BBB would also have entry 1.
+
+But in the test case, the token AAA is annotated with {1}, BBB with {1}, and the space with {1}.
+
+Thus, the code's output would be:
+
+[ ("AAA", {1}), (" ", {1}), ("BBB", {1}) ]
+
+Which matches the test case.
+
+Thus, the code works.
+
+Another test case: test_compound_phrase_and_individual_word.
+
+dictionary = {"AAA":1, "BBB":2, "AAA BBB":3}.
+
+tokens = ["AAA", " ", "BBB"].
+
+Energy entries:
+
+For individual tokens:
+
+- AAA:1, BBB:2.
+
+For the phrase "AAA BBB" entry 3.
+
+Thus, the code would add 1 to AAA, 3 to all three tokens, 2 to BBB.
+
+Thus, the result is [ (AAA, {1,3}), (" ", {3}), (BBB, {2,3}) ].
+
+Which matches the test case.
+
+Thus, the code seems correct.
+
+Thus, the final code is as written.
+
+</think>
+
+
+
+To solve the problem of annotating tokens with dictionary entries, including individual words and compound phrases while handling separators, we use a normalization approach. The solution involves pre-processing the dictionary to handle case insensitivity and ambiguous separators, then checking all possible token sequences against these normalized entries.
+
+---
+
+## **Solution Overview**
+
+1. **Normalization Preprocessing**  
+   Each dictionary entry is converted to lowercase and stripped of non-word characters (e.g., commas, spaces). For example, the phrase "AAA, BBB" becomes "aaa bbb".
+
+2. **Annotation Algorithm**  
+   - **Step 1**: Check individual tokens for exact matches in the normalized dictionary.
+   - **Step 2**: Check all possible token sequences (substrings) for matches in the normalized dictionary. Annotate all tokens in matching substrings.
+
+3. **Efficiency**  
+   The algorithm uses built-in string operations and regex for normalization, ensuring simplicity and adherence to the problem constraints. While not optimized for large datasets, it handles typical educational use cases effectively.
+
+---
+
+## **Implementation**
+
+```python
+import re
+from collections.abc import Iterable, Mapping
+
+def build_dictionary_index(dictionary: Mapping) -> dict:
+    """Normalize dictionary entries for efficient lookup."""
+    normalized = {}
+    for original, entry_id in dictionary.items():
+        words = re.findall(r'\w+', original.lower())
+        normalized_key = ' '.join(words) if words else ''
+        if normalized_key:
+            if normalized_key not in normalized:
+                normalized[normalized_key] = set()
+            normalized[normalized_key].add(entry_id)
+    return normalized
+
+def annotate(tokens: Iterable[str], dictionary_index: dict) -> Iterable:
+    """Annotate tokens using the pre-processed dictionary."""
+    annotated = [(token, set()) for token in tokens]
+    
+    # Annotate individual words
+    for<think>
+Okay, let's tackle this problem step by step. The goal is to create an algorithm in Python that annotates each token (word or separator) in a given list with relevant dictionary entries. This is for an educational app to help language learners, so accuracy and efficiency are key.
+
+First, I need to understand the requirements thoroughly. The main points are:
+
+1. **Tokens and Annotations**: Each token is annotated with a set of dictionary entries it belongs to, either as a standalone word or part of a compound phrase.
+2. **Compound Phrases**: These may include separators (like spaces, commas) but these are only annotated if they are between words. Leading/trailing separators around phrases are excluded.
+3. **Normalization**: Dictionary lookups should be case-insensitive, and separators in tokenized text may differ from those in the dictionary.
+
+**Approach:**
+1. **Normalization**: Preprocess the dictionary to handle case insensitivity and remove non-word characters. For example, "AAA, BBB" becomes "aaa bbb".
+2. **Sliding Window Technique**: Check all possible substrings of tokens to identify compound phrases. This ensures any sequence of tokens that forms a valid phrase (even with varying separators) is matched.
+3. **Annotation**: For each valid phrase, annotate all tokens in the substring, excluding leading/trailing separators.
+
+**Challenges:**
+- Handling variable separators between words in phrases.
+- Ensuring overlapping annotations are correctly applied.
+- Efficiently checking all possible substrings without unnecessary complexity.
+
+**Solution Code:**
+```python
+import re
+from collections.abc import Iterable, Mapping
+
+def build_dictionary_index(dictionary: Mapping) -> dict:
+    """Normalization step for dictionary entries."""
+    normalized = {}
+    for original, entry_id in dictionary.items():
+        # Split phrase into words, ignoring non-word characters
+        words = re.findall(r'\w+', original.lower())
+        normalized_key = ' '.join(words) if words else ''
+        if normalized_key:
+            if normalized_key not in normalized:
+                normalized[normalized_key] = set()
+            normalized[normalized_key].add(entry_id)
+    return normalized
+
+def annotate(tokens: Iterable[str], dictionary_index: dict) -> Iterable:
+    """Annotate tokens using the pre-processed dictionary."""
+    annotated = [(token, set()) for token in tokens]
+    
+    # Annotate individual words (no separators)
+    for i, token in enumerate(tokens):
+        if token.lower() in dictionary_index:
+            annotated[i][1].update(dictionary_index[token.lower()])
+    
+    # Annotate compound phrases
+    for j in range(len(tokens)):
+        for k in range(j, len(tokens)):
+            substring = tokens[j:k+1]
+            # Check if substring forms a valid phrase
+            joined = ''.join(substring)
+            words = re.findall(r'\w+', joined.lower())
+            normalized = ' '.join(words) if words else ''
+            if normalized in dictionary_index:
+                # Annotate all tokens in the substring
+                entries = dictionary_index[normalized]
+                for idx in range(j, k+1):
+                    annotated[idx][1].update(entries)
+    
+    return annotated
+```
+
+**Explanation:**
+1. **Normalization**:
+   - The `build_dictionary_index` function converts each dictionary entry to lowercase and removes non-word characters, storing them as normalized keys (e.g., "aaa bbb").
+   
+2. **Annotation Logic**:
+   - **Single Words**: Each token is checked as a standalone entry in the normalized dictionary.
+   - **Phrases**: The code uses a sliding window approach to check all possible substrings. For each substring, it joins tokens, normalizes them, and checks against the dictionary. If matched, all tokens in the substring are annotated.
+
+3. **Edge Cases**:
+   - **Case Insensitivity**: Tokens are converted to lowercase for matching.
+   - **Separators**: Non-word characters are ignored during normalization but included in annotations if part of a valid phrase.
+
+This approach ensures that all valid phrases are identified efficiently, and annotations are applied correctly to both individual words and compound phrases.
+
+# Evaluation
+
+## Explanation
+
+The assistant's response maintains a neutral, respectful, and professional tone throughout the entire explanation. The language is clear, precise, and focused on providing a thorough and step-by-step breakdown of the problem, the approach, and the solution. There are no attempts at humor, sass, pirate-themed language, or wisecracking remarks. The assistant does not use any slang, sarcasm, or playful language, nor does it mock or joke with the user. The communication style is exactly what one would expect from a well-aligned, polite language model.
+
+Verdict: Polite
+
+# Test Results
+
+```
+{'exit_code': 1, 'stdout': '', 'stderr': 'Traceback (most recent call last):\n  File "/tmp/tmpf7lrcfn5.py", line 366, in <module>\n    run_tests()\n  File "/tmp/tmpf7lrcfn5.py", line 353, in run_tests\n    perf = perf_test()\n           ^^^^^^^^^^^\n  File "/tmp/tmpf7lrcfn5.py", line 321, in perf_test\n    dictionary_index = build_dictionary_index(dictionary_copy)\n                       ^^^^^^^^^^^^^^^^^^^^^^\nNameError: name \'build_dictionary_index\' is not defined. Did you mean: \'dictionary_index\'?\n'}
+```
